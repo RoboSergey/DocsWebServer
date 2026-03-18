@@ -10,7 +10,6 @@ class Base(DeclarativeBase):
 
 engine = create_async_engine(
     f"sqlite+aiosqlite:///{settings.database_path}",
-    connect_args={"check_same_thread": False},
 )
 
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)

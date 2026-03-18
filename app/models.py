@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
@@ -23,9 +24,9 @@ class Document(Base):
         String, primary_key=True, default=lambda: str(uuid.uuid4())
     )
     title: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now())
-    updated_at: Mapped[DateTime] = mapped_column(
-        DateTime, default=func.now(), onupdate=func.now()
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
     )
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     share_mode: Mapped[str] = mapped_column(String, default="public")
@@ -45,7 +46,7 @@ class Version(Base):
     )
     version_num: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     source: Mapped[str] = mapped_column(String, default="editor")
 
     document: Mapped["Document"] = relationship("Document", back_populates="versions")

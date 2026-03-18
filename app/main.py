@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+import app.models  # noqa: F401 — ensures models are registered on Base.metadata
 from app.database import create_tables
 
 
