@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 import app.models  # noqa: F401 — ensures models are registered on Base.metadata
 from app.database import create_tables
+from app.routers.documents import router as documents_router
 
 
 @asynccontextmanager
@@ -13,6 +14,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Document Web Server", lifespan=lifespan)
+
+app.include_router(documents_router)
 
 
 # Will mount static files and templates in later phases
