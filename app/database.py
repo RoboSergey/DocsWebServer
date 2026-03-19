@@ -50,6 +50,14 @@ async def create_tables():
                 text("INSERT INTO users (id, username, password, is_admin) VALUES (:id, :username, :password, :is_admin)"),
                 {"id": admin_id, "username": "admin", "password": hashed, "is_admin": True}
             )
+            await db.commit()
+        else:
+            result = await db.execute(text("SELECT id FROM users WHERE username = 'admin'"))
+            row = result.fetchone()
+            admin_id = row[0] if row else None
+
+        # Backfill always runs (if we have an admin to assign to)
+        if admin_id:
             await db.execute(
                 text("UPDATE documents SET user_id = :id WHERE user_id IS NULL"),
                 {"id": admin_id}
@@ -59,11 +67,9 @@ async def create_tables():
                 {"id": admin_id}
             )
             await db.commit()
-        else:
-            # Check if admin still has default password
-            result = await db.execute(
-                text("SELECT password FROM users WHERE username = 'admin'")
-            )
-            row = result.fetchone()
-            if row and pwd_context.verify("admin", row[0]):
-                print("WARNING: Default admin password is still in use. Change it via the admin panel.")
+
+        # Default password warning — always check, not just in else branch
+        result = await db.execute(text("SELECT password FROM users WHERE username = 'admin'"))
+        row = result.fetchone()
+        if row and pwd_context.verify("admin", row[0]):
+            print("WARNING: Default admin password is still in use. Change it via the admin panel.")
