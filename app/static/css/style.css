@@ -157,9 +157,14 @@ body { font-family: var(--font-ui); background: var(--main-bg); color: var(--tex
     justify-content: center;
     height: 100%;
     color: var(--muted);
-    font-size: 0.95rem;
+    font-size: 0.8rem;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+}
+
+#empty-state .empty-icon {
+    font-size: 2.5rem;
+    opacity: 0.35;
 }
 
 /* ===== Sidebar items ===== */
@@ -313,4 +318,12 @@ body { font-family: var(--font-ui); background: var(--main-bg); color: var(--tex
 /* ===== Scrollbar ===== */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--sidebar-hover); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ===== Focus rings ===== */
+.btn:focus-visible,
+.sidebar-item:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
