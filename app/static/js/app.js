@@ -134,6 +134,7 @@ function renderDocList(docs, container, folderId) {
         row.draggable = true;
         row.innerHTML = `<span></span><span class="icon">📄</span><span class="label">${escHtml(doc.title)}</span>`;
         row.addEventListener('click', () => selectDocument(doc.id, folderId));
+        row.addEventListener('contextmenu', (e) => openContextMenu(e, doc.id, folderId));
         row.addEventListener('dragstart', (e) => onDragStart(e, 'doc', doc.id, doc.sort_order ?? 0));
         row.addEventListener('dragend', onDragEnd);
         container.appendChild(row);
@@ -669,6 +670,86 @@ async function performDrop(targetFolderId, sortOrder) {
     }
     await loadSidebar();
 }
+
+// ─── Context menu ─────────────────────────────────────────────────────────
+const contextMenu = document.getElementById('context-menu');
+let ctxDocId = null;
+let ctxFolderId = null;
+
+function openContextMenu(e, docId, folderId) {
+    e.preventDefault();
+    ctxDocId = docId;
+    ctxFolderId = folderId;
+    // Show first so getBoundingClientRect() returns real dimensions
+    contextMenu.classList.add('open');
+    const menuRect = contextMenu.getBoundingClientRect();
+    let left = e.clientX;
+    let top = e.clientY;
+    if (left + menuRect.width > window.innerWidth) left = window.innerWidth - menuRect.width - 4;
+    if (top + menuRect.height > window.innerHeight) top = window.innerHeight - menuRect.height - 4;
+    contextMenu.style.left = left + 'px';
+    contextMenu.style.top = top + 'px';
+}
+
+function closeContextMenu() {
+    contextMenu.classList.remove('open');
+    ctxDocId = null;
+    ctxFolderId = null;
+}
+
+// Action handlers must capture ctxDocId/ctxFolderId into locals before any await —
+// this listener clears them (via event bubbling) after each button click.
+document.addEventListener('click', closeContextMenu);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeContextMenu(); });
+
+document.getElementById('ctx-edit').addEventListener('click', async () => {
+    const docId = ctxDocId;
+    const folderId = ctxFolderId;
+    if (!docId) return;
+    if (docId !== state.currentDocId) await selectDocument(docId, folderId);
+    if (state.mode !== 'edit') btnToggleEdit.click();
+});
+
+document.getElementById('ctx-share').addEventListener('click', async () => {
+    const docId = ctxDocId;
+    if (!docId) return;
+    const res = await fetch(`/api/documents/${docId}/sharing`);
+    if (!res.ok) return;
+    const settings = await res.json();
+    const shareUrl = settings.share_mode === 'token' && settings.share_token
+        ? `${location.origin}/preview/${docId}?token=${settings.share_token}`
+        : `${location.origin}/preview/${docId}`;
+    navigator.clipboard.writeText(shareUrl)
+        .then(() => showToast('Link copied!'))
+        .catch(() => showToast('Copy failed'));
+});
+
+document.getElementById('ctx-delete').addEventListener('click', async () => {
+    const docId = ctxDocId;
+    const folderId = ctxFolderId;
+    if (!docId) return;
+    const confirmed = await showModal({
+        title: 'Delete document',
+        message: 'This cannot be undone.',
+        confirmText: 'Delete',
+        danger: true,
+    });
+    if (!confirmed) return;
+    const res = await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
+    if (!res.ok) { showToast('Delete failed'); return; }
+    document.querySelector(`.sidebar-item[data-doc-id="${docId}"]`)?.remove();
+    if (state.currentDocId === docId) {
+        state.currentDocId = null;
+        state.dirty = false;
+        toolbarTitle.textContent = 'Select a document';
+        toolbarActions.style.display = 'none';
+        emptyState.style.display = 'flex';
+        previewIframe.style.display = 'none';
+        editorWrap.style.display = 'none';
+        closePanel();
+    }
+    showToast('Deleted');
+});
 
 // ─── Sidebar resize ───────────────────────────────────────────────────────
 const sidebarResizer = document.getElementById('sidebar-resizer');
