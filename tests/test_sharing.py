@@ -16,6 +16,14 @@ class TestSharing:
         assert data["share_mode"] == "public"
         assert data["share_token"] is None
 
+    async def test_get_share_settings_not_found(self, client):
+        res = await client.get("/api/documents/nonexistent/sharing")
+        assert res.status_code == 404
+
+    async def test_update_share_mode_not_found(self, client):
+        res = await client.put("/api/documents/nonexistent/sharing", json={"share_mode": "token"})
+        assert res.status_code == 404
+
     async def test_update_share_mode_to_token(self, client):
         doc_id = await self._create_doc(client)
         res = await client.put(
@@ -29,9 +37,7 @@ class TestSharing:
 
     async def test_update_share_mode_to_public_keeps_token(self, client):
         doc_id = await self._create_doc(client)
-        # Switch to token mode
         await client.put(f"/api/documents/{doc_id}/sharing", json={"share_mode": "token"})
-        # Switch back to public
         res = await client.put(f"/api/documents/{doc_id}/sharing", json={"share_mode": "public"})
         data = res.json()
         assert data["share_mode"] == "public"
@@ -42,7 +48,8 @@ class TestSharing:
         await client.put(f"/api/documents/{doc_id}/sharing", json={"share_mode": "token"})
         settings1 = (await client.get(f"/api/documents/{doc_id}/sharing")).json()
 
-        await client.post(f"/api/documents/{doc_id}/sharing/regenerate-token")
+        regen_res = await client.post(f"/api/documents/{doc_id}/sharing/regenerate-token")
+        assert regen_res.status_code == 200
         settings2 = (await client.get(f"/api/documents/{doc_id}/sharing")).json()
 
         assert settings2["share_token"] != settings1["share_token"]
