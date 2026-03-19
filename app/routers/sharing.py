@@ -3,7 +3,8 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db
+from app.dependencies import get_current_user, get_db
+from app.models import User
 from app.schemas import ShareSettings, ShareUpdate
 from app.services import document_service
 
@@ -22,8 +23,9 @@ async def get_share_settings(
     doc_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ShareSettings:
-    doc = await document_service.get_document(db, doc_id)
+    doc = await document_service.get_document(db, doc_id, user_id=current_user.id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -41,8 +43,9 @@ async def update_share_settings(
     body: ShareUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ShareSettings:
-    doc = await document_service.get_document(db, doc_id)
+    doc = await document_service.get_document(db, doc_id, user_id=current_user.id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -67,8 +70,9 @@ async def regenerate_share_token(
     doc_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ShareSettings:
-    doc = await document_service.get_document(db, doc_id)
+    doc = await document_service.get_document(db, doc_id, user_id=current_user.id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
