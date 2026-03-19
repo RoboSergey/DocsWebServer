@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Document, Folder
@@ -25,6 +25,7 @@ async def get_folder_tree(db: AsyncSession) -> list[FolderTree]:
             name=f.name,
             parent_id=f.parent_id,
             created_at=f.created_at,
+            sort_order=f.sort_order,
             children=[],
             documents=[],
         )
@@ -44,13 +45,21 @@ async def get_folder_tree(db: AsyncSession) -> list[FolderTree]:
         else:
             roots.append(ft)
 
+    for ft in folder_map.values():
+        ft.children.sort(key=lambda x: (x.sort_order, x.name))
+        ft.documents.sort(key=lambda x: (x.sort_order, x.title))
+    roots.sort(key=lambda x: (x.sort_order, x.name))
+
     return roots
 
 
 async def create_folder(
     db: AsyncSession, name: str, parent_id: str | None = None
 ) -> Folder:
-    folder = Folder(id=str(uuid.uuid4()), name=name, parent_id=parent_id)
+    max_stmt = select(func.max(Folder.sort_order)).where(Folder.parent_id == parent_id)
+    max_order: int | None = (await db.execute(max_stmt)).scalar_one_or_none()
+    sort_order = (max_order if max_order is not None else -1) + 1
+    folder = Folder(id=str(uuid.uuid4()), name=name, parent_id=parent_id, sort_order=sort_order)
     db.add(folder)
     await db.commit()
     await db.refresh(folder)
@@ -66,6 +75,31 @@ async def rename_folder(db: AsyncSession, folder_id: str, name: str) -> Folder |
     await db.commit()
     await db.refresh(folder)
     return folder
+
+
+async def set_folder_position(
+    db: AsyncSession, folder_id: str, parent_id: str | None, sort_order: int
+) -> tuple[Folder | None, str]:
+    """Returns (folder, 'ok') or (None, 'not_found') or (None, 'cycle')."""
+    result = await db.execute(select(Folder).where(Folder.id == folder_id))
+    folder = result.scalar_one_or_none()
+    if folder is None:
+        return None, "not_found"
+    if parent_id is not None:
+        # Cycle check: walk ancestors of parent_id to ensure folder_id is not among them
+        all_result = await db.execute(select(Folder))
+        folder_map = {f.id: f for f in all_result.scalars().all()}
+        current = parent_id
+        while current is not None:
+            if current == folder_id:
+                return None, "cycle"
+            f = folder_map.get(current)
+            current = f.parent_id if f else None
+    folder.parent_id = parent_id
+    folder.sort_order = sort_order
+    await db.commit()
+    await db.refresh(folder)
+    return folder, "ok"
 
 
 async def delete_folder(db: AsyncSession, folder_id: str) -> bool:

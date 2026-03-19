@@ -46,7 +46,7 @@ async def list_documents(
         )
         .outerjoin(version_counts, Document.id == version_counts.c.document_id)
         .where(*where)
-        .order_by(Document.updated_at.desc())
+        .order_by(Document.sort_order.asc(), Document.title.asc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
@@ -79,10 +79,18 @@ async def create_document(
     folder_id: str | None = None,
 ) -> Document:
     """Creates a Document, optionally creating the first Version."""
+    max_stmt = select(func.max(Document.sort_order)).where(
+        Document.folder_id == folder_id,
+        Document.is_deleted.is_(False),
+    )
+    max_order: int | None = (await db.execute(max_stmt)).scalar_one_or_none()
+    sort_order = (max_order if max_order is not None else -1) + 1
+
     doc = Document(
         id=str(uuid.uuid4()),
         title=title,
         folder_id=folder_id,
+        sort_order=sort_order,
     )
     db.add(doc)
     await db.flush()  # generate the PK before creating Version
@@ -189,6 +197,20 @@ async def move_document(
     if doc is None:
         return None
     doc.folder_id = folder_id
+    doc.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(doc)
+    return doc
+
+
+async def set_document_position(
+    db: AsyncSession, doc_id: str, folder_id: str | None, sort_order: int
+) -> Document | None:
+    doc = await get_document(db, doc_id)
+    if doc is None:
+        return None
+    doc.folder_id = folder_id
+    doc.sort_order = sort_order
     doc.updated_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(doc)

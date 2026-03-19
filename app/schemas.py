@@ -30,6 +30,7 @@ class DocumentResponse(BaseModel):
     folder_id: str | None = None
     version_count: int = 0
     latest_version: int | None = None
+    sort_order: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -90,6 +91,7 @@ class FolderResponse(BaseModel):
     name: str
     parent_id: str | None = None
     created_at: datetime
+    sort_order: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -101,6 +103,16 @@ class FolderTree(FolderResponse):
 
 # Required: Pydantic v2 needs model_rebuild() for self-referential models
 FolderTree.model_rebuild()
+
+
+class DocumentPosition(BaseModel):
+    folder_id: str | None = None
+    sort_order: int = Field(..., ge=0)
+
+
+class FolderPosition(BaseModel):
+    parent_id: str | None = None
+    sort_order: int = Field(..., ge=0)
 
 
 class DocumentMove(BaseModel):
