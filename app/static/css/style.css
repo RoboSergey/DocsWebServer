@@ -32,6 +32,7 @@
         --text: #cdd6f4;
         --muted: #6c7086;
     }
+    .btn.danger:hover { background: #4a1515; color: #f1948a; }
 }
 
 /* ===== Reset ===== */
@@ -78,7 +79,7 @@ body { font-family: var(--font-ui); background: var(--main-bg); color: var(--tex
 
 /* ===== Toolbar ===== */
 #toolbar {
-    height: 44px;
+    height: 38px;
     background: var(--toolbar-bg);
     border-bottom: 1px solid var(--border);
     display: flex;
@@ -90,13 +91,24 @@ body { font-family: var(--font-ui); background: var(--main-bg); color: var(--tex
 
 #toolbar-title {
     flex: 1;
-    font-size: 0.9rem;
-    font-weight: 500;
+    font-size: 0.925rem;
+    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--text);
 }
+
+.toolbar-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    margin: 0 2px;
+    flex-shrink: 0;
+}
+
+.btn.danger { color: #c0392b; }
+.btn.danger:hover { background: #fde8e8; color: #922b21; }
 
 /* ===== Content area ===== */
 #content {

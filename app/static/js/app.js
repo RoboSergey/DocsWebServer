@@ -5,6 +5,7 @@ const state = {
     mode: 'preview',          // 'preview' | 'edit'
     editorContent: '',
     dirty: false,
+    folderNames: {},    // id → name, populated in loadSidebar
 };
 
 // ─── CodeMirror init ──────────────────────────────────────────────────────
@@ -47,6 +48,15 @@ async function loadSidebar() {
     ]);
     const folders = await foldersRes.json();
     const { documents } = await docsRes.json();
+
+    // Build flat id→name lookup (handles nested folders)
+    state.folderNames = {};
+    (function collectNames(list) {
+        for (const f of list) {
+            state.folderNames[f.id] = f.name;
+            if (f.children && f.children.length) collectNames(f.children);
+        }
+    })(folders);
 
     const rootDocs = documents.filter(d => d.folder_id === null);
 
@@ -112,7 +122,11 @@ async function selectDocument(docId, folderId = null) {
         el.classList.toggle('active', el.dataset.docId === docId);
     });
 
-    toolbarTitle.textContent = doc.title;
+    // font-weight:400 on the prefix resets the 600 weight of #toolbar-title so the folder name is visually lighter
+    const folderName = folderId ? (state.folderNames[folderId] || null) : null;
+    toolbarTitle.innerHTML = folderName
+        ? `<span style="color:var(--muted);font-weight:400">${escHtml(folderName)} / </span>${escHtml(doc.title)}`
+        : escHtml(doc.title);
     toolbarActions.style.display = 'flex';
     emptyState.style.display = 'none';
     closePanel();
@@ -148,13 +162,13 @@ btnToggleEdit.addEventListener('click', () => {
         cm.clearHistory();
         state.dirty = false;
         showEditor();
-        btnToggleEdit.textContent = '👁 Preview';
+        btnToggleEdit.textContent = 'Preview';
         btnSave.style.display = 'inline-flex';
     } else {
         state.editorContent = cm.getValue();
         state.mode = 'preview';
         showPreview(state.editorContent);
-        btnToggleEdit.textContent = '✏️ Edit';
+        btnToggleEdit.textContent = 'Edit';
         btnSave.style.display = 'none';
     }
 });

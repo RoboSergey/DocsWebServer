@@ -21,12 +21,14 @@
   <div id="main">
     <div id="toolbar">
       <span id="toolbar-title">Select a document</span>
-      <div id="toolbar-actions" style="display:none; gap:6px;">
-        <button type="button" class="btn" id="btn-toggle-edit">✏️ Edit</button>
-        <button type="button" class="btn" id="btn-save" style="display:none;">💾 Save</button>
-        <button type="button" class="btn" id="btn-history">🕐 History</button>
-        <button type="button" class="btn" id="btn-share">🔗 Share</button>
-        <button type="button" class="btn" id="btn-delete" style="color:#c0392b;">🗑</button>
+      <div id="toolbar-actions" style="display:none; gap:4px; align-items:center;">
+        <button type="button" class="btn" id="btn-toggle-edit">Edit</button>
+        <button type="button" class="btn" id="btn-save" style="display:none;">Save</button>
+        <div class="toolbar-sep"></div>
+        <button type="button" class="btn" id="btn-history">History</button>
+        <button type="button" class="btn" id="btn-share">Share</button>
+        <div class="toolbar-sep"></div>
+        <button type="button" class="btn danger" id="btn-delete">Delete</button>
       </div>
     </div>
 
