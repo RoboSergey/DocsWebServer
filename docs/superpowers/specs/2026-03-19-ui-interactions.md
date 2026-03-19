@@ -170,9 +170,15 @@ function openContextMenu(e, docId, folderId) {
     e.preventDefault();
     ctxDocId = docId;
     ctxFolderId = folderId;
-    contextMenu.style.left = e.clientX + 'px';
-    contextMenu.style.top = e.clientY + 'px';
+    // Show first so getBoundingClientRect() returns real dimensions
     contextMenu.classList.add('open');
+    const menuRect = contextMenu.getBoundingClientRect();
+    let left = e.clientX;
+    let top = e.clientY;
+    if (left + menuRect.width > window.innerWidth) left = window.innerWidth - menuRect.width - 4;
+    if (top + menuRect.height > window.innerHeight) top = window.innerHeight - menuRect.height - 4;
+    contextMenu.style.left = left + 'px';
+    contextMenu.style.top = top + 'px';
 }
 
 function closeContextMenu() {
@@ -231,21 +237,6 @@ document.getElementById('ctx-delete').addEventListener('click', async () => {
     showToast('Deleted');
 });
 ```
-
-**Viewport overflow clamping:** After calling `contextMenu.classList.add('open')` (which makes the element visible and gives it measurable dimensions), clamp the position so the menu never overflows the viewport:
-
-```javascript
-contextMenu.classList.add('open');
-const menuRect = contextMenu.getBoundingClientRect();
-let left = e.clientX;
-let top = e.clientY;
-if (left + menuRect.width > window.innerWidth) left = window.innerWidth - menuRect.width - 4;
-if (top + menuRect.height > window.innerHeight) top = window.innerHeight - menuRect.height - 4;
-contextMenu.style.left = left + 'px';
-contextMenu.style.top = top + 'px';
-```
-
-The clamping must happen after `classList.add('open')` because `getBoundingClientRect()` returns zeroes on a hidden element.
 
 ---
 
