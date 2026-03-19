@@ -1,5 +1,5 @@
+import os
 import secrets
-import socket
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
@@ -14,16 +14,13 @@ router = APIRouter(tags=["pages"])
 
 @router.get("/api/server-info")
 async def server_info(request: Request):
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        local_ip = s.getsockname()[0]
-        s.close()
-    except Exception:
-        local_ip = request.base_url.hostname
-    port = request.base_url.port
-    scheme = request.base_url.scheme
-    origin = f"{scheme}://{local_ip}" + (f":{port}" if port and port not in (80, 443) else "")
+    host_ip = os.environ.get("HOST_IP", "").strip()
+    if host_ip:
+        port = request.base_url.port
+        scheme = request.base_url.scheme
+        origin = f"{scheme}://{host_ip}" + (f":{port}" if port and port not in (80, 443) else "")
+    else:
+        origin = str(request.base_url).rstrip("/")
     return JSONResponse({"origin": origin})
 
 
