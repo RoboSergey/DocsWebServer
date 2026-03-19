@@ -670,6 +670,37 @@ async function performDrop(targetFolderId, sortOrder) {
     await loadSidebar();
 }
 
+// ─── Sidebar resize ───────────────────────────────────────────────────────
+const sidebarResizer = document.getElementById('sidebar-resizer');
+const MIN_SIDEBAR = 160;
+const MAX_SIDEBAR = 480;
+
+// Restore saved width on load
+const savedSidebarWidth = parseInt(localStorage.getItem('sidebarWidth'), 10);
+if (savedSidebarWidth >= MIN_SIDEBAR && savedSidebarWidth <= MAX_SIDEBAR) {
+    document.documentElement.style.setProperty('--sidebar-width', savedSidebarWidth + 'px');
+}
+
+sidebarResizer.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    document.body.style.userSelect = 'none';
+    sidebarResizer.classList.add('active');
+    const onMove = (e) => {
+        const w = Math.min(MAX_SIDEBAR, Math.max(MIN_SIDEBAR, e.clientX));
+        document.documentElement.style.setProperty('--sidebar-width', w + 'px');
+    };
+    const onUp = (e) => {
+        document.body.style.userSelect = '';
+        sidebarResizer.classList.remove('active');
+        const w = Math.min(MAX_SIDEBAR, Math.max(MIN_SIDEBAR, e.clientX));
+        localStorage.setItem('sidebarWidth', w);
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+});
+
 // ─── Init ─────────────────────────────────────────────────────────────────
 setupRootDropTarget();
 loadSidebar();
