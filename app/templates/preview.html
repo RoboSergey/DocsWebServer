@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ document.title }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+        body { margin: 0; padding: 0; }
+        .preview-header {
+            padding: 1rem;
+            background: var(--pico-background-color);
+            border-bottom: 1px solid var(--pico-muted-border-color);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .preview-frame {
+            width: 100%;
+            height: calc(100vh - 60px);
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-header">
+        <strong>{{ document.title }}</strong>
+        <span style="color: var(--pico-muted-color); font-size: 0.875rem;">Shared document</span>
+    </div>
+    <iframe
+        class="preview-frame"
+        src="/preview/{{ document.id }}/raw{% if request.query_params.get('token') %}?token={{ request.query_params.get('token') }}{% endif %}"
+        sandbox="allow-scripts"
+    ></iframe>
+</body>
+</html>

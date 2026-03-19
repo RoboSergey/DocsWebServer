@@ -60,3 +60,15 @@ class VersionDetail(VersionResponse):
 class VersionListResponse(BaseModel):
     versions: list[VersionResponse]
     total: int
+
+
+class ShareSettings(BaseModel):
+    share_mode: str
+    share_token: str | None
+    share_url: str | None = None  # computed by router
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ShareUpdate(BaseModel):
+    share_mode: Literal["public", "token"]
