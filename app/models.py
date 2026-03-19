@@ -28,6 +28,7 @@ class Folder(Base):
         String, ForeignKey("folders.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     children: Mapped[list["Folder"]] = relationship(
         "Folder",
@@ -62,6 +63,7 @@ class Document(Base):
     folder_id: Mapped[str | None] = mapped_column(
         String, ForeignKey("folders.id", ondelete="SET NULL"), nullable=True
     )
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     folder: Mapped["Folder | None"] = relationship("Folder", back_populates="documents")
     versions: Mapped[list["Version"]] = relationship(
