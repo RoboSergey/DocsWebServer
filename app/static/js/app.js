@@ -43,7 +43,7 @@ const panelShare      = document.getElementById('panel-share');
 async function loadSidebar() {
     const [foldersRes, docsRes] = await Promise.all([
         fetch('/api/folders'),
-        fetch('/api/documents?page_size=200'),
+        fetch('/api/documents?page_size=100'),
     ]);
     const folders = await foldersRes.json();
     const { documents } = await docsRes.json();
@@ -106,7 +106,6 @@ async function selectDocument(docId, folderId = null) {
 
     state.currentDocId = docId;
     state.editorContent = doc.content || '';
-    state.dirty = false;
 
     // Update sidebar active state
     document.querySelectorAll('.doc-item').forEach(el => {
@@ -124,6 +123,7 @@ async function selectDocument(docId, folderId = null) {
     } else {
         showPreview(state.editorContent);
     }
+    state.dirty = false;
 }
 
 // ─── Preview / Edit toggle ────────────────────────────────────────────────
@@ -146,6 +146,7 @@ btnToggleEdit.addEventListener('click', () => {
         state.mode = 'edit';
         cm.setValue(state.editorContent);
         cm.clearHistory();
+        state.dirty = false;
         showEditor();
         btnToggleEdit.textContent = '👁 Preview';
         btnSave.style.display = 'inline-flex';
@@ -190,12 +191,12 @@ fileInput.addEventListener('change', async () => {
     if (!res.ok) { showToast('Upload failed'); return; }
     const doc = await res.json();
     state.editorContent = doc.content || '';
-    state.dirty = false;
     if (state.mode === 'edit') {
         cm.setValue(state.editorContent);
     } else {
         showPreview(state.editorContent);
     }
+    state.dirty = false;
     showToast('Uploaded');
     fileInput.value = '';
 });
@@ -277,9 +278,12 @@ window.restoreVersion = async (versionNum) => {
     if (!res.ok) { showToast('Restore failed'); return; }
     const doc = await res.json();
     state.editorContent = doc.content || '';
+    if (state.mode === 'edit') {
+        cm.setValue(state.editorContent);
+    } else {
+        showPreview(state.editorContent);
+    }
     state.dirty = false;
-    if (state.mode === 'edit') cm.setValue(state.editorContent);
-    else showPreview(state.editorContent);
     closePanel();
     showToast('Restored to v' + versionNum);
 };
@@ -359,7 +363,8 @@ function escHtml(s) {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
