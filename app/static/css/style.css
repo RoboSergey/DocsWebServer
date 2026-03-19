@@ -243,28 +243,7 @@ body { font-family: var(--font-ui); background: var(--main-bg); color: var(--tex
 }
 .folder-children.open { display: block; }
 
-/* Folder delete button — shown on hover */
 .folder-item { position: relative; }
-.folder-delete-btn {
-    display: none;
-    position: absolute;
-    right: 6px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: var(--muted);
-    cursor: pointer;
-    padding: 0 3px;
-    font-size: 15px;
-    line-height: 1;
-    border-radius: 3px;
-}
-.folder-item:hover .folder-delete-btn { display: block; }
-.folder-delete-btn:hover { color: #c0392b; background: #fde8e8; }
-@media (prefers-color-scheme: dark) {
-    .folder-delete-btn:hover { color: #f1948a; background: #4a1515; }
-}
 
 /* ===== Buttons ===== */
 .btn {
@@ -482,6 +461,8 @@ body { font-family: var(--font-ui); background: var(--main-bg); color: var(--tex
 }
 
 #context-menu.open { display: block; }
+.ctx-doc-only { display: none; }
+#context-menu.ctx-type-doc .ctx-doc-only { display: block; }
 
 .ctx-item {
     display: block;

@@ -90,26 +90,7 @@ function renderFolderList(folders, container) {
         row.addEventListener('dragend', onDragEnd);
         setupFolderRowDrop(row, folder.id);
 
-        const deleteBtn = document.createElement('button');
-        deleteBtn.type = 'button';
-        deleteBtn.className = 'folder-delete-btn';
-        deleteBtn.title = 'Delete folder';
-        deleteBtn.textContent = '×';
-        deleteBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const confirmed = await showModal({
-                title: `Delete "${folder.name}"`,
-                message: 'Documents inside will be moved to the parent level.',
-                confirmText: 'Delete',
-                danger: true,
-            });
-            if (!confirmed) return;
-            const res = await fetch(`/api/folders/${folder.id}`, { method: 'DELETE' });
-            if (!res.ok) { showToast('Delete folder failed'); return; }
-            await loadSidebar();
-            showToast('Folder deleted');
-        });
-        row.appendChild(deleteBtn);
+        row.addEventListener('contextmenu', (e) => openContextMenu(e, 'folder', folder.id, null));
 
         wrap.appendChild(row);
 
@@ -134,7 +115,7 @@ function renderDocList(docs, container, folderId) {
         row.draggable = true;
         row.innerHTML = `<span></span><span class="icon">📄</span><span class="label">${escHtml(doc.title)}</span>`;
         row.addEventListener('click', () => selectDocument(doc.id, folderId));
-        row.addEventListener('contextmenu', (e) => openContextMenu(e, doc.id, folderId));
+        row.addEventListener('contextmenu', (e) => openContextMenu(e, 'doc', doc.id, folderId));
         row.addEventListener('dragstart', (e) => onDragStart(e, 'doc', doc.id, doc.sort_order ?? 0));
         row.addEventListener('dragend', onDragEnd);
         container.appendChild(row);
@@ -673,15 +654,18 @@ async function performDrop(targetFolderId, sortOrder) {
 
 // ─── Context menu ─────────────────────────────────────────────────────────
 const contextMenu = document.getElementById('context-menu');
-let ctxDocId = null;
-let ctxFolderId = null;
+let ctxType = null;       // 'doc' | 'folder'
+let ctxItemId = null;     // id of the right-clicked item
+let ctxParentFolderId = null; // for docs: the folder they live in
 
-function openContextMenu(e, docId, folderId) {
+function openContextMenu(e, type, itemId, parentFolderId) {
     e.preventDefault();
-    ctxDocId = docId;
-    ctxFolderId = folderId;
+    ctxType = type;
+    ctxItemId = itemId;
+    ctxParentFolderId = parentFolderId;
     // Show first so getBoundingClientRect() returns real dimensions
     contextMenu.classList.add('open');
+    if (type === 'doc') contextMenu.classList.add('ctx-type-doc');
     const menuRect = contextMenu.getBoundingClientRect();
     let left = e.clientX;
     let top = e.clientY;
@@ -692,61 +676,114 @@ function openContextMenu(e, docId, folderId) {
 }
 
 function closeContextMenu() {
-    contextMenu.classList.remove('open');
-    ctxDocId = null;
-    ctxFolderId = null;
+    contextMenu.classList.remove('open', 'ctx-type-doc');
+    ctxType = null;
+    ctxItemId = null;
+    ctxParentFolderId = null;
 }
 
-// Action handlers must capture ctxDocId/ctxFolderId into locals before any await —
+// Action handlers must capture ctx* vars into locals before any await —
 // this listener clears them (via event bubbling) after each button click.
 document.addEventListener('click', closeContextMenu);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeContextMenu(); });
 
 document.getElementById('ctx-edit').addEventListener('click', async () => {
-    const docId = ctxDocId;
-    const folderId = ctxFolderId;
-    if (!docId) return;
-    if (docId !== state.currentDocId) await selectDocument(docId, folderId);
+    const itemId = ctxItemId;
+    const parentFolderId = ctxParentFolderId;
+    if (!itemId) return;
+    if (itemId !== state.currentDocId) await selectDocument(itemId, parentFolderId);
     if (state.mode !== 'edit') btnToggleEdit.click();
 });
 
+document.getElementById('ctx-rename').addEventListener('click', async () => {
+    const type = ctxType;
+    const itemId = ctxItemId;
+    const parentFolderId = ctxParentFolderId;
+    if (!itemId) return;
+
+    const currentName = type === 'doc'
+        ? document.querySelector(`.doc-item[data-doc-id="${itemId}"] .label`)?.textContent
+        : document.querySelector(`.folder-item[data-folder-id="${itemId}"] .label`)?.textContent;
+
+    const result = await showModal({
+        title: type === 'doc' ? 'Rename document' : 'Rename folder',
+        inputs: [{ label: 'Name', value: currentName || '', id: 'modal-rename-name' }],
+        confirmText: 'Rename',
+    });
+    if (!result) return;
+    const name = result['modal-rename-name']?.trim();
+    if (!name) return;
+
+    if (type === 'doc') {
+        const res = await fetch(`/api/documents/${itemId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: name }),
+        });
+        if (!res.ok) { showToast('Rename failed'); return; }
+        document.querySelector(`.doc-item[data-doc-id="${itemId}"] .label`).textContent = name;
+        if (state.currentDocId === itemId) {
+            const folderName = parentFolderId ? (state.folderNames[parentFolderId] || null) : null;
+            toolbarTitle.innerHTML = folderName
+                ? `<span style="color:var(--muted);font-weight:400">${escHtml(folderName)} / </span>${escHtml(name)}`
+                : escHtml(name);
+        }
+    } else {
+        const res = await fetch(`/api/folders/${itemId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (!res.ok) { showToast('Rename failed'); return; }
+        document.querySelector(`.folder-item[data-folder-id="${itemId}"] .label`).textContent = name;
+        state.folderNames[itemId] = name;
+    }
+    showToast('Renamed');
+});
+
 document.getElementById('ctx-share').addEventListener('click', async () => {
-    const docId = ctxDocId;
-    if (!docId) return;
-    const res = await fetch(`/api/documents/${docId}/sharing`);
+    const itemId = ctxItemId;
+    if (!itemId) return;
+    const res = await fetch(`/api/documents/${itemId}/sharing`);
     if (!res.ok) return;
     const settings = await res.json();
     const shareUrl = settings.share_mode === 'token' && settings.share_token
-        ? `${location.origin}/preview/${docId}?token=${settings.share_token}`
-        : `${location.origin}/preview/${docId}`;
+        ? `${location.origin}/preview/${itemId}?token=${settings.share_token}`
+        : `${location.origin}/preview/${itemId}`;
     navigator.clipboard.writeText(shareUrl)
         .then(() => showToast('Link copied!'))
         .catch(() => showToast('Copy failed'));
 });
 
 document.getElementById('ctx-delete').addEventListener('click', async () => {
-    const docId = ctxDocId;
-    const folderId = ctxFolderId;
-    if (!docId) return;
+    const type = ctxType;
+    const itemId = ctxItemId;
+    if (!itemId) return;
     const confirmed = await showModal({
-        title: 'Delete document',
-        message: 'This cannot be undone.',
+        title: type === 'doc' ? 'Delete document' : 'Delete folder',
+        message: type === 'doc' ? 'This cannot be undone.' : 'Documents inside will be moved to the parent level.',
         confirmText: 'Delete',
         danger: true,
     });
     if (!confirmed) return;
-    const res = await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
-    if (!res.ok) { showToast('Delete failed'); return; }
-    document.querySelector(`.sidebar-item[data-doc-id="${docId}"]`)?.remove();
-    if (state.currentDocId === docId) {
-        state.currentDocId = null;
-        state.dirty = false;
-        toolbarTitle.textContent = 'Select a document';
-        toolbarActions.style.display = 'none';
-        emptyState.style.display = 'flex';
-        previewIframe.style.display = 'none';
-        editorWrap.style.display = 'none';
-        closePanel();
+    if (type === 'doc') {
+        const res = await fetch(`/api/documents/${itemId}`, { method: 'DELETE' });
+        if (!res.ok) { showToast('Delete failed'); return; }
+        document.querySelector(`.sidebar-item[data-doc-id="${itemId}"]`)?.remove();
+        if (state.currentDocId === itemId) {
+            state.currentDocId = null;
+            state.dirty = false;
+            toolbarTitle.textContent = 'Select a document';
+            toolbarActions.style.display = 'none';
+            emptyState.style.display = 'flex';
+            previewIframe.style.display = 'none';
+            editorWrap.style.display = 'none';
+            closePanel();
+        }
+    } else {
+        const res = await fetch(`/api/folders/${itemId}`, { method: 'DELETE' });
+        if (!res.ok) { showToast('Delete failed'); return; }
+        await loadSidebar();
     }
     showToast('Deleted');
 });
@@ -767,6 +804,7 @@ sidebarResizer.addEventListener('mousedown', (e) => {
     document.body.style.userSelect = 'none';
     sidebarResizer.classList.add('active');
     const onMove = (e) => {
+        if (e.buttons !== 1) { onUp(e); return; }
         const w = Math.min(MAX_SIDEBAR, Math.max(MIN_SIDEBAR, e.clientX));
         document.documentElement.style.setProperty('--sidebar-width', w + 'px');
     };
