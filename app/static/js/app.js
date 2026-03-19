@@ -97,7 +97,13 @@ function renderFolderList(folders, container) {
         deleteBtn.textContent = '×';
         deleteBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (!confirm(`Delete folder "${folder.name}"?\n\nDocuments inside will be moved to the parent level.`)) return;
+            const confirmed = await showModal({
+                title: `Delete "${folder.name}"`,
+                message: 'Documents inside will be moved to the parent level.',
+                confirmText: 'Delete',
+                danger: true,
+            });
+            if (!confirmed) return;
             const res = await fetch(`/api/folders/${folder.id}`, { method: 'DELETE' });
             if (!res.ok) { showToast('Delete folder failed'); return; }
             await loadSidebar();
@@ -149,7 +155,15 @@ function toggleFolder(row, folder) {
 
 // ─── Document selection ───────────────────────────────────────────────────
 async function selectDocument(docId, folderId = null) {
-    if (state.dirty && !confirm('You have unsaved changes. Discard?')) return;
+    if (state.dirty) {
+        const confirmed = await showModal({
+            title: 'Unsaved changes',
+            message: 'Discard changes and switch document?',
+            confirmText: 'Discard',
+            danger: true,
+        });
+        if (!confirmed) return;
+    }
 
     state.currentFolderId = folderId;
 
@@ -268,7 +282,13 @@ fileInput.addEventListener('change', async () => {
 // ─── Delete ───────────────────────────────────────────────────────────────
 btnDelete.addEventListener('click', async () => {
     if (!state.currentDocId) return;
-    if (!confirm('Delete this document?')) return;
+    const confirmed = await showModal({
+        title: 'Delete document',
+        message: 'This cannot be undone.',
+        confirmText: 'Delete',
+        danger: true,
+    });
+    if (!confirmed) return;
     const docId = state.currentDocId;
     const res = await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
     if (!res.ok) { showToast('Delete failed'); return; }
@@ -286,7 +306,13 @@ btnDelete.addEventListener('click', async () => {
 
 // ─── New document ─────────────────────────────────────────────────────────
 btnNewDoc.addEventListener('click', async () => {
-    const title = prompt('Document title:', 'Untitled');
+    const result = await showModal({
+        title: 'New document',
+        inputs: [{ label: 'Title', value: 'Untitled', id: 'modal-doc-title' }],
+        confirmText: 'Create',
+    });
+    if (!result) return;
+    const title = result['modal-doc-title']?.trim();
     if (!title) return;
     const res = await fetch('/api/documents', {
         method: 'POST',
@@ -301,7 +327,13 @@ btnNewDoc.addEventListener('click', async () => {
 
 // ─── New folder ───────────────────────────────────────────────────────────
 btnNewFolder.addEventListener('click', async () => {
-    const name = prompt('Folder name:');
+    const result = await showModal({
+        title: 'New folder',
+        inputs: [{ label: 'Name', id: 'modal-folder-name' }],
+        confirmText: 'Create',
+    });
+    if (!result) return;
+    const name = result['modal-folder-name']?.trim();
     if (!name) return;
     const res = await fetch('/api/folders', {
         method: 'POST',
@@ -431,6 +463,80 @@ function escHtml(s) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#x27;');
+}
+
+// ─── Modal ────────────────────────────────────────────────────────────────
+function showModal({ title, message = '', inputs = [], confirmText = 'OK', cancelText = 'Cancel', danger = false }) {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('modal-overlay');
+        const confirmBtn = document.getElementById('modal-confirm');
+        const cancelBtn = document.getElementById('modal-cancel');
+
+        document.getElementById('modal-title').textContent = title;
+
+        const msgEl = document.getElementById('modal-message');
+        msgEl.textContent = message;
+        msgEl.style.display = message ? 'block' : 'none';
+
+        const inputsEl = document.getElementById('modal-inputs');
+        inputsEl.innerHTML = '';
+        inputs.forEach(({ label, value = '', id }) => {
+            const lbl = document.createElement('label');
+            lbl.textContent = label;
+            lbl.htmlFor = id;
+            const inp = document.createElement('input');
+            inp.type = 'text';
+            inp.value = value;
+            inp.id = id;
+            inputsEl.appendChild(lbl);
+            inputsEl.appendChild(inp);
+        });
+        inputsEl.style.display = inputs.length ? 'block' : 'none';
+
+        confirmBtn.textContent = confirmText;
+        cancelBtn.textContent = cancelText;
+        confirmBtn.classList.toggle('danger', danger);
+        confirmBtn.classList.toggle('primary', !danger);
+
+        overlay.classList.add('open');
+        setTimeout(() => (inputsEl.querySelector('input') || confirmBtn).focus(), 0);
+
+        function close(result) {
+            overlay.classList.remove('open');
+            overlay.removeEventListener('click', onOverlayClick);
+            document.removeEventListener('keydown', onKey);
+            confirmBtn.removeEventListener('click', onConfirm);
+            cancelBtn.removeEventListener('click', onCancel);
+            resolve(result);
+        }
+
+        function onConfirm() {
+            if (inputs.length) {
+                const values = {};
+                inputs.forEach(({ id }) => { values[id] = document.getElementById(id)?.value ?? ''; });
+                close(values);
+            } else {
+                close(true);
+            }
+        }
+
+        function onCancel() { close(null); }
+
+        function onOverlayClick(e) { if (e.target === overlay) close(null); }
+
+        function onKey(e) {
+            if (e.key === 'Escape') { close(null); return; }
+            if (e.key === 'Enter') {
+                if (document.activeElement === cancelBtn) { close(null); return; }
+                if (document.activeElement?.tagName !== 'BUTTON') onConfirm();
+            }
+        }
+
+        confirmBtn.addEventListener('click', onConfirm);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('click', onOverlayClick);
+        document.addEventListener('keydown', onKey);
+    });
 }
 
 // ─── Drag and Drop ────────────────────────────────────────────────────────
