@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+DUMMY_HASH = "$2b$12$eImiTXuWVxfM37uY4JANjQ.NptiOh7JBn5n1o8EBL.xXQpjOlS3zK"
 
 class _LoginBody(BaseModel):
     username: str
@@ -22,7 +23,9 @@ class _LoginBody(BaseModel):
 async def login(body: _LoginBody, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     result = await db.execute(select(User).where(User.username == body.username))
     user = result.scalar_one_or_none()
-    if user is None or not pwd_context.verify(body.password, user.password):
+    # Always run bcrypt to prevent timing oracle
+    password_to_check = user.password if user is not None else DUMMY_HASH
+    if user is None or not pwd_context.verify(body.password, password_to_check):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     expire = datetime.now(timezone.utc) + timedelta(days=settings.token_expire_days)
     token = jwt.encode(
