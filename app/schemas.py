@@ -117,3 +117,26 @@ class FolderPosition(BaseModel):
 
 class DocumentMove(BaseModel):
     folder_id: str | None = None
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserCreate(BaseModel):
+    username: str = Field(..., min_length=1, max_length=100)
+    password: str = Field(..., min_length=1, max_length=200)
+    is_admin: bool = False
+
+
+class UserResponse(BaseModel):
+    id: str
+    username: str
+    is_admin: bool
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PasswordReset(BaseModel):
+    password: str = Field(..., min_length=1, max_length=200)
