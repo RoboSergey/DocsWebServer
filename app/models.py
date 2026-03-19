@@ -17,6 +17,34 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 
+class Folder(Base):
+    __tablename__ = "folders"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    parent_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("folders.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    children: Mapped[list["Folder"]] = relationship(
+        "Folder",
+        back_populates="parent",
+        foreign_keys="[Folder.parent_id]",
+    )
+    parent: Mapped["Folder | None"] = relationship(
+        "Folder",
+        back_populates="children",
+        remote_side="[Folder.id]",
+        foreign_keys="[Folder.parent_id]",
+    )
+    documents: Mapped[list["Document"]] = relationship(
+        "Document", back_populates="folder"
+    )
+
+
 class Document(Base):
     __tablename__ = "documents"
 
@@ -31,7 +59,11 @@ class Document(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     share_mode: Mapped[str] = mapped_column(String, default="public")
     share_token: Mapped[str | None] = mapped_column(String, nullable=True)
+    folder_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("folders.id", ondelete="SET NULL"), nullable=True
+    )
 
+    folder: Mapped["Folder | None"] = relationship("Folder", back_populates="documents")
     versions: Mapped[list["Version"]] = relationship(
         "Version", back_populates="document", cascade="all, delete-orphan"
     )
