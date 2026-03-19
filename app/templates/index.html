@@ -8,7 +8,9 @@
   <aside id="sidebar">
     <div id="sidebar-header">
       <button type="button" class="btn primary" id="btn-new-doc" title="New document">+ Doc</button>
+      <button type="button" class="btn" id="btn-upload-doc" title="Upload HTML file">⬆️</button>
       <button type="button" class="btn" id="btn-new-folder" title="New folder">+ 📁</button>
+      <input type="file" id="file-input" accept=".html,text/html" style="display:none;">
     </div>
     <div id="sidebar-tree">
       <div id="tree-root"></div>
@@ -22,12 +24,10 @@
       <div id="toolbar-actions" style="display:none; gap:6px;">
         <button type="button" class="btn" id="btn-toggle-edit">✏️ Edit</button>
         <button type="button" class="btn" id="btn-save" style="display:none;">💾 Save</button>
-        <button type="button" class="btn" id="btn-upload">⬆️ Upload</button>
         <button type="button" class="btn" id="btn-history">🕐 History</button>
         <button type="button" class="btn" id="btn-share">🔗 Share</button>
         <button type="button" class="btn" id="btn-delete" style="color:#c0392b;">🗑</button>
       </div>
-      <input type="file" id="file-input" accept=".html,text/html" style="display:none;">
     </div>
 
     <!-- Inline panels -->

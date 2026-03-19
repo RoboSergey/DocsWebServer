@@ -25,7 +25,7 @@ const toolbarTitle    = document.getElementById('toolbar-title');
 const toolbarActions  = document.getElementById('toolbar-actions');
 const btnToggleEdit   = document.getElementById('btn-toggle-edit');
 const btnSave         = document.getElementById('btn-save');
-const btnUpload       = document.getElementById('btn-upload');
+const btnUploadDoc    = document.getElementById('btn-upload-doc');
 const btnHistory      = document.getElementById('btn-history');
 const btnShare        = document.getElementById('btn-share');
 const btnDelete       = document.getElementById('btn-delete');
@@ -176,29 +176,36 @@ async function saveDocument() {
 
 btnSave.addEventListener('click', saveDocument);
 
-// ─── File upload ──────────────────────────────────────────────────────────
-btnUpload.addEventListener('click', () => fileInput.click());
+// ─── File upload (sidebar — creates new document from file) ───────────────
+btnUploadDoc.addEventListener('click', () => fileInput.click());
 
 fileInput.addEventListener('change', async () => {
-    if (!state.currentDocId || !fileInput.files.length) return;
+    if (!fileInput.files.length) return;
     const file = fileInput.files[0];
+    const title = file.name.replace(/\.html?$/i, '');
+
+    // Create the document first
+    const createRes = await fetch('/api/documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, folder_id: state.currentFolderId }),
+    });
+    if (!createRes.ok) { showToast('Upload failed'); fileInput.value = ''; return; }
+    const newDoc = await createRes.json();
+
+    // Upload the file content
     const formData = new FormData();
     formData.append('file', file);
-    const res = await fetch(`/api/documents/${state.currentDocId}/upload`, {
+    const uploadRes = await fetch(`/api/documents/${newDoc.id}/upload`, {
         method: 'POST',
         body: formData,
     });
-    if (!res.ok) { showToast('Upload failed'); return; }
-    const doc = await res.json();
-    state.editorContent = doc.content || '';
-    if (state.mode === 'edit') {
-        cm.setValue(state.editorContent);
-    } else {
-        showPreview(state.editorContent);
-    }
-    state.dirty = false;
-    showToast('Uploaded');
     fileInput.value = '';
+    if (!uploadRes.ok) { showToast('Upload failed'); return; }
+
+    await loadSidebar();
+    await selectDocument(newDoc.id, state.currentFolderId);
+    showToast('Uploaded');
 });
 
 // ─── Delete ───────────────────────────────────────────────────────────────
