@@ -74,11 +74,13 @@ async def create_document(
     db: AsyncSession,
     title: str,
     content: str = "",
+    folder_id: str | None = None,
 ) -> Document:
     """Creates a Document, optionally creating the first Version."""
     doc = Document(
         id=str(uuid.uuid4()),
         title=title,
+        folder_id=folder_id,
     )
     db.add(doc)
     await db.flush()  # generate the PK before creating Version

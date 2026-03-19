@@ -48,7 +48,7 @@ async def create_document(
     body: DocumentCreate,
     db: AsyncSession = Depends(get_db),
 ) -> DocumentDetail:
-    doc = await document_service.create_document(db, title=body.title, content=body.content)
+    doc = await document_service.create_document(db, title=body.title, content=body.content, folder_id=body.folder_id)
     await _attach_version_stats(db, doc)
     content = await document_service.get_latest_content(db, doc.id)
     result = DocumentDetail.model_validate(doc)
