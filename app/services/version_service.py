@@ -1,6 +1,9 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
 
 from app.models import Document, Version
 
@@ -22,29 +25,20 @@ async def list_versions(
         return []
 
     stmt = (
-        select(
-            Version.id,
-            Version.document_id,
-            Version.version_num,
-            Version.created_at,
-            Version.source,
+        select(Version)
+        .options(
+            load_only(
+                Version.id,
+                Version.document_id,
+                Version.version_num,
+                Version.created_at,
+                Version.source,
+            )
         )
         .where(Version.document_id == doc_id)
         .order_by(Version.version_num.desc())
     )
-    rows = (await db.execute(stmt)).all()
-
-    versions: list[Version] = []
-    for row in rows:
-        v = Version.__new__(Version)
-        v.id = row[0]
-        v.document_id = row[1]
-        v.version_num = row[2]
-        v.created_at = row[3]
-        v.source = row[4]
-        versions.append(v)
-
-    return versions
+    return list((await db.execute(stmt)).scalars().all())
 
 
 async def get_version(
@@ -68,6 +62,7 @@ async def restore_version(
     """Creates a new version with content copied from the specified version.
 
     source = 'restore'. Returns the new version, or None if document/version not found.
+    Also updates document.updated_at.
     """
     doc_stmt = select(Document).where(
         Document.id == doc_id,
@@ -97,6 +92,7 @@ async def restore_version(
             source="restore",
         )
         db.add(new_version)
+        doc.updated_at = datetime.now(timezone.utc)
 
         try:
             await db.commit()
