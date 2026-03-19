@@ -21,7 +21,7 @@ A self-hosted web server for creating, editing, and sharing interactive HTML doc
 
 ## Screenshots
 
-| Sidebar + folder tree | Split-pane editor | Version history |
+| Sidebar + folder tree | Edit mode (full-area CodeMirror editor) | Version history |
 |---|---|---|
 | Navigate folders and documents | Live preview while you type | Restore any past version |
 
@@ -86,7 +86,7 @@ The database is created automatically at `./documents.db` on first run.
 
 ### Editing
 
-- Click **Edit** in the toolbar to open the split-pane editor — the right pane updates live (300ms debounce)
+- Click **Edit** in the toolbar to switch to edit mode — the full-area CodeMirror editor updates the preview live (300ms debounce)
 - Press **Ctrl+S** (or **Cmd+S** on Mac) or click **Save** to persist a version
 - Click **Upload** to replace the document content with a local `.html` file
 - Click **Edit** again (or the close button) to return to preview-only mode
