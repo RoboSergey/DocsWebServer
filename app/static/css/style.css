@@ -190,7 +190,6 @@ body { font-family: var(--font-ui); background: var(--main-bg); color: var(--tex
     line-height: 1;
     opacity: 0.65;
     transition: opacity 0.1s;
-    flex-shrink: 0;
 }
 .sidebar-item:hover .icon,
 .sidebar-item.active .icon { opacity: 1; }
@@ -208,13 +207,12 @@ body { font-family: var(--font-ui); background: var(--main-bg); color: var(--tex
     align-items: center;
     justify-content: center;
     font-size: 0;
+    color: var(--muted);
 }
 .sidebar-item .chevron svg {
     width: 8px;
     height: 8px;
-    fill: var(--muted);
     transition: transform 0.15s;
-    flex-shrink: 0;
 }
 .folder-item.open .chevron svg { transform: rotate(90deg); }
 
