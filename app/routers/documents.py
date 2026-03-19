@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
@@ -133,7 +134,10 @@ async def move_document(
     body: DocumentMove,
     db: AsyncSession = Depends(get_db),
 ) -> DocumentDetail:
-    doc = await document_service.move_document(db, doc_id, body.folder_id)
+    try:
+        doc = await document_service.move_document(db, doc_id, body.folder_id)
+    except IntegrityError:
+        raise HTTPException(status_code=422, detail="Invalid folder_id: folder not found")
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
     await _attach_version_stats(db, doc)

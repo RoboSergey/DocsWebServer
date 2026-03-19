@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
@@ -17,7 +18,10 @@ async def list_folders(db: AsyncSession = Depends(get_db)) -> list[FolderTree]:
 async def create_folder(
     body: FolderCreate, db: AsyncSession = Depends(get_db)
 ) -> FolderResponse:
-    folder = await folder_service.create_folder(db, name=body.name, parent_id=body.parent_id)
+    try:
+        folder = await folder_service.create_folder(db, name=body.name, parent_id=body.parent_id)
+    except IntegrityError:
+        raise HTTPException(status_code=422, detail="Invalid parent_id: folder not found")
     return FolderResponse.model_validate(folder)
 
 
