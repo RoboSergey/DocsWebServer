@@ -65,7 +65,6 @@ async function loadSidebar() {
     treeRoot.innerHTML = '';
     renderFolderList(folders, treeRoot);
     renderDocList(rootDocs, treeRoot, null);
-    setupRootDropTarget();
     // Restore open folder state after re-render
     for (const folderId of state.openFolderIds) {
         const row = document.querySelector(`.folder-item[data-folder-id="${folderId}"]`);
@@ -467,7 +466,7 @@ function setupFolderRowDrop(row, folderId) {
         row.classList.remove('drag-over');
         const childWrap = row.nextElementSibling;
         const existingCount = childWrap
-            ? [...childWrap.children].filter(el => el.classList.contains('sidebar-item')).length
+            ? [...childWrap.children].filter(el => !el.classList.contains('drop-indicator')).length
             : 0;
         await performDrop(folderId, existingCount);
     });
@@ -488,7 +487,7 @@ function setupContainerDrop(container, parentFolderId) {
         }
 
         const items = [...container.children].filter(
-            el => el !== indicator && (el.classList.contains('sidebar-item') || el.tagName === 'DIV')
+            el => el !== indicator && el.dataset.sortOrder !== undefined
         );
         let insertBefore = null;
         for (const item of items) {
@@ -566,4 +565,5 @@ async function performDrop(targetFolderId, sortOrder) {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
+setupRootDropTarget();
 loadSidebar();
