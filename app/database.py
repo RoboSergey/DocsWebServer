@@ -20,6 +20,7 @@ async def create_tables():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         for sql in [
+            "ALTER TABLE documents ADD COLUMN folder_id TEXT REFERENCES folders(id)",
             "ALTER TABLE folders ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE documents ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
         ]:
