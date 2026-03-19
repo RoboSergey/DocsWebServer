@@ -1,6 +1,6 @@
 # DocsWebServer
 
-A self-hosted web server for creating, editing, and sharing interactive HTML documents. Features a live-preview split-pane editor, full version history, and flexible sharing via public or token-protected links.
+A self-hosted web server for creating, editing, and sharing interactive HTML documents. Features an Obsidian-style single-page interface with folder support, a live-preview editor, full version history, and flexible sharing via public or token-protected links.
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)
@@ -10,7 +10,10 @@ A self-hosted web server for creating, editing, and sharing interactive HTML doc
 
 ## Features
 
-- **Rich editor** — CodeMirror 6 with HTML syntax highlighting and 300ms debounced live preview
+- **Obsidian-style SPA** — collapsible sidebar with folder tree; no full-page reloads
+- **Folder support** — organize documents into nested folders; create, rename, and delete folders
+- **Rich editor** — CodeMirror 5 with HTML syntax highlighting and 300ms debounced live preview
+- **Dark / light theme** — automatic via `prefers-color-scheme`, accent color `#7b5ea7`
 - **Version history** — every save creates a snapshot; restore any previous version in one click
 - **File upload** — paste HTML or upload `.html` files directly
 - **Flexible sharing** — public links or token-protected links with one-click copy
@@ -18,9 +21,9 @@ A self-hosted web server for creating, editing, and sharing interactive HTML doc
 
 ## Screenshots
 
-| Management dashboard | Split-pane editor | Version history |
+| Sidebar + folder tree | Split-pane editor | Version history |
 |---|---|---|
-| Create, list, and delete documents | Live preview while you type | Restore any past version |
+| Navigate folders and documents | Live preview while you type | Restore any past version |
 
 ## Tech Stack
 
@@ -28,8 +31,8 @@ A self-hosted web server for creating, editing, and sharing interactive HTML doc
 |---|---|
 | Backend | [FastAPI](https://fastapi.tiangolo.com/) + [SQLAlchemy async](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html) |
 | Database | SQLite via [aiosqlite](https://aiosqlite.omnilib.dev/) |
-| Frontend | [HTMX](https://htmx.org/) + [Pico CSS](https://picocss.com/) |
-| Editor | [CodeMirror 6](https://codemirror.net/) (loaded via CDN) |
+| Frontend | Vanilla JS (SPA state machine), custom CSS variables |
+| Editor | [CodeMirror 5](https://codemirror.net/5/) (loaded via CDN) |
 | Runtime | Python 3.12, Uvicorn |
 | Deployment | Docker + docker-compose |
 
@@ -76,16 +79,17 @@ The database is created automatically at `./documents.db` on first run.
 
 ## Usage
 
-### Creating a document
+### Creating a folder or document
 
-1. Type a title in the **Create** bar on the dashboard and press **Create**
-2. You're taken straight to the editor
+1. Use the **+** buttons in the sidebar to create a new folder or document
+2. Folders and documents appear in the sidebar tree; click any document to open it
 
 ### Editing
 
-- Type HTML in the left pane — the right pane updates live (300ms debounce)
+- Click **Edit** in the toolbar to open the split-pane editor — the right pane updates live (300ms debounce)
 - Press **Ctrl+S** (or **Cmd+S** on Mac) or click **Save** to persist a version
 - Click **Upload** to replace the document content with a local `.html` file
+- Click **Edit** again (or the close button) to return to preview-only mode
 
 ### Version history
 
@@ -159,19 +163,23 @@ DocsWebServer/
 │   ├── main.py              # FastAPI app, lifespan, router registration
 │   ├── config.py            # Settings (Pydantic)
 │   ├── database.py          # Async SQLAlchemy engine + session factory
-│   ├── models.py            # Document + Version ORM models
+│   ├── models.py            # Folder + Document + Version ORM models
 │   ├── schemas.py           # Pydantic request/response schemas
 │   ├── dependencies.py      # get_db session dependency
 │   ├── routers/
 │   │   ├── documents.py     # Document CRUD + content save + upload
+│   │   ├── folders.py       # Folder CRUD
 │   │   ├── versions.py      # Version history + restore
 │   │   ├── sharing.py       # Share settings + token management
-│   │   └── pages.py         # Server-rendered HTML pages
+│   │   └── pages.py         # Server-rendered HTML pages (SPA shell + preview)
 │   ├── services/
 │   │   ├── document_service.py
+│   │   ├── folder_service.py
 │   │   └── version_service.py
 │   ├── templates/           # Jinja2 HTML templates
-│   └── static/              # CSS + JS assets
+│   └── static/
+│       ├── css/style.css    # Obsidian-style theme + CSS variables
+│       └── js/app.js        # SPA state machine
 └── tests/
     ├── conftest.py           # In-memory SQLite fixtures
     ├── test_documents.py

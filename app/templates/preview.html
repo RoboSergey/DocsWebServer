@@ -2,13 +2,29 @@
 <html lang="en">
 <head>
     <title>{{ document.title }}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <style>
-        body { margin: 0; padding: 0; }
+        :root {
+            --main-bg: #ffffff;
+            --toolbar-bg: #f8f8f8;
+            --border: #ddd;
+            --text: #1a1a1a;
+            --muted: #888;
+            --font-ui: system-ui, -apple-system, sans-serif;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --main-bg: #2d2d2d;
+                --toolbar-bg: #252525;
+                --border: #3a3a3a;
+                --text: #dcddde;
+                --muted: #888;
+            }
+        }
+        body { margin: 0; padding: 0; font-family: var(--font-ui); background: var(--main-bg); color: var(--text); }
         .preview-header {
             padding: 1rem;
-            background: var(--pico-background-color);
-            border-bottom: 1px solid var(--pico-muted-border-color);
+            background: var(--toolbar-bg);
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
             gap: 1rem;
@@ -23,7 +39,7 @@
 <body>
     <div class="preview-header">
         <strong>{{ document.title }}</strong>
-        <span style="color: var(--pico-muted-color); font-size: 0.875rem;">Shared document</span>
+        <span style="color: var(--muted); font-size: 0.875rem;">Shared document</span>
     </div>
     <iframe
         class="preview-frame"
