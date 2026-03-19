@@ -88,7 +88,7 @@ class FolderRename(BaseModel):
 class FolderResponse(BaseModel):
     id: str
     name: str
-    parent_id: str | None
+    parent_id: str | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -97,8 +97,6 @@ class FolderResponse(BaseModel):
 class FolderTree(FolderResponse):
     children: list["FolderTree"] = []
     documents: list[DocumentResponse] = []
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 # Required: Pydantic v2 needs model_rebuild() for self-referential models
