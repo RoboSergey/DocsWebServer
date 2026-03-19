@@ -184,6 +184,7 @@ async def move_document(
     doc_id: str,
     folder_id: str | None,
 ) -> Document | None:
+    """Moves a document to a folder (or to root if folder_id is None). Returns updated Document or None if not found."""
     doc = await get_document(db, doc_id)
     if doc is None:
         return None

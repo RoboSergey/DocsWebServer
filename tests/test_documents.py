@@ -166,9 +166,10 @@ class TestDocumentFolderSupport:
 
         res = await client.get(f"/api/documents?folder_id={folder['id']}")
         assert res.status_code == 200
-        docs = res.json()["documents"]
-        assert len(docs) == 1
-        assert docs[0]["title"] == "In Folder"
+        data = res.json()
+        assert data["total"] == 1
+        assert len(data["documents"]) == 1
+        assert data["documents"][0]["title"] == "In Folder"
 
     async def test_list_documents_no_filter_returns_all(self, client):
         folder = (await client.post("/api/folders", json={"name": "Work"})).json()
