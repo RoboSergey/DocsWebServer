@@ -62,7 +62,7 @@ function renderFolderList(folders, container) {
         const row = document.createElement('div');
         row.className = 'sidebar-item folder-item';
         row.dataset.folderId = folder.id;
-        row.innerHTML = `<span class="chevron">▶</span> <span class="icon">📁</span> <span>${escHtml(folder.name)}</span>`;
+        row.innerHTML = `<span class="chevron"><svg viewBox="0 0 6 10" xmlns="http://www.w3.org/2000/svg"><path d="M1 1l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></span><span class="icon">📁</span><span class="label">${escHtml(folder.name)}</span>`;
         row.addEventListener('click', () => toggleFolder(row, folder));
         wrap.appendChild(row);
 
@@ -81,7 +81,7 @@ function renderDocList(docs, container, folderId) {
         const row = document.createElement('div');
         row.className = 'sidebar-item doc-item' + (doc.id === state.currentDocId ? ' active' : '');
         row.dataset.docId = doc.id;
-        row.innerHTML = `<span class="icon">📄</span> <span>${escHtml(doc.title)}</span>`;
+        row.innerHTML = `<span></span><span class="icon">📄</span><span class="label">${escHtml(doc.title)}</span>`;
         row.addEventListener('click', () => selectDocument(doc.id, folderId));
         container.appendChild(row);
     }

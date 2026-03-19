@@ -149,31 +149,81 @@ body { font-family: var(--font-ui); background: var(--main-bg); color: var(--tex
 
 /* ===== Sidebar items ===== */
 .sidebar-item {
-    display: flex;
+    display: grid;
+    grid-template-columns: 16px 16px 1fr;
     align-items: center;
-    gap: 6px;
-    padding: 5px 10px;
+    column-gap: 4px;
+    padding: 4px 8px 4px 6px;
     cursor: pointer;
     font-size: 0.875rem;
+    line-height: 1.4;
     color: var(--sidebar-text);
-    border-radius: var(--radius);
-    margin: 1px 4px;
+    border-radius: 5px;
+    margin: 1px 6px;
     user-select: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    transition: background 0.1s ease;
 }
 
 .sidebar-item:hover { background: var(--sidebar-hover); }
-.sidebar-item.active { background: var(--sidebar-active); }
-.sidebar-item .icon { flex-shrink: 0; font-size: 0.8rem; }
-.sidebar-item.doc-item { padding-left: 22px; }
-.sidebar-item.folder-item { font-weight: 500; }
 
-.folder-children { display: none; }
+.sidebar-item.active {
+    background: var(--accent-light);
+    color: var(--sidebar-active-text);
+    font-weight: 500;
+    position: relative;
+}
+
+.sidebar-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    bottom: 20%;
+    width: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+}
+
+/* Column 2: icon */
+.sidebar-item .icon {
+    font-size: 13px;
+    line-height: 1;
+    opacity: 0.65;
+    transition: opacity 0.1s;
+    flex-shrink: 0;
+}
+.sidebar-item:hover .icon,
+.sidebar-item.active .icon { opacity: 1; }
+
+/* Column 3: label — truncate long names */
+.sidebar-item .label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Column 1: chevron */
+.sidebar-item .chevron {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0;
+}
+.sidebar-item .chevron svg {
+    width: 8px;
+    height: 8px;
+    fill: var(--muted);
+    transition: transform 0.15s;
+    flex-shrink: 0;
+}
+.folder-item.open .chevron svg { transform: rotate(90deg); }
+
+/* Nesting indent on the container, not the item */
+.folder-children {
+    display: none;
+    padding-left: 14px;
+}
 .folder-children.open { display: block; }
-.folder-item .chevron { font-size: 0.65rem; transition: transform 0.15s; }
-.folder-item.open .chevron { transform: rotate(90deg); }
 
 /* ===== Buttons ===== */
 .btn {
