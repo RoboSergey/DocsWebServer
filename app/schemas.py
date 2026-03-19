@@ -1,21 +1,22 @@
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # Request schemas
 class DocumentCreate(BaseModel):
-    title: str
-    content: str = ""  # optional initial content
+    title: str = Field(..., min_length=1, max_length=500)
+    content: str = Field(default="", max_length=10_000_000)  # optional initial content
 
 
 class DocumentUpdate(BaseModel):
-    title: str
+    title: str = Field(..., min_length=1, max_length=500)
 
 
 class ContentSave(BaseModel):
-    content: str
-    source: str = "editor"  # 'editor' | 'paste'
+    content: str = Field(..., max_length=10_000_000)
+    source: Literal["editor", "paste"] = "editor"
 
 
 # Response schemas

@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Document, Version
@@ -78,8 +79,6 @@ async def create_document(
     doc = Document(
         id=str(uuid.uuid4()),
         title=title,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
     )
     db.add(doc)
     await db.flush()  # generate the PK before creating Version
@@ -90,7 +89,6 @@ async def create_document(
             version_num=1,
             content=content,
             source="editor",
-            created_at=datetime.now(timezone.utc),
         )
         db.add(version)
 
@@ -139,26 +137,33 @@ async def save_content(
     if doc is None:
         return None
 
-    # Determine next version_num
-    max_stmt = select(func.max(Version.version_num)).where(
-        Version.document_id == doc_id
-    )
-    current_max: int | None = (await db.execute(max_stmt)).scalar_one_or_none()
-    next_version_num = (current_max or 0) + 1
+    for _attempt in range(2):
+        # Determine next version_num
+        max_stmt = select(func.max(Version.version_num)).where(
+            Version.document_id == doc_id
+        )
+        current_max: int | None = (await db.execute(max_stmt)).scalar_one_or_none()
+        next_version_num = (current_max or 0) + 1
 
-    version = Version(
-        document_id=doc_id,
-        version_num=next_version_num,
-        content=content,
-        source=source,
-        created_at=datetime.now(timezone.utc),
-    )
-    db.add(version)
+        version = Version(
+            document_id=doc_id,
+            version_num=next_version_num,
+            content=content,
+            source=source,
+        )
+        db.add(version)
 
-    doc.updated_at = datetime.now(timezone.utc)
-    await db.commit()
-    await db.refresh(version)
-    return version
+        doc.updated_at = datetime.now(timezone.utc)
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            continue
+        await db.refresh(version)
+        return version
+
+    # Both attempts failed — re-raise
+    raise RuntimeError(f"Failed to save version for document {doc_id} after retries")
 
 
 async def upload_content(

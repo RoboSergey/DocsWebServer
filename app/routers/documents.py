@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,8 +30,8 @@ async def _attach_version_stats(db: AsyncSession, doc: Document) -> None:
 
 @router.get("", response_model=DocumentListResponse)
 async def list_documents(
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ) -> DocumentListResponse:
     documents, total = await document_service.list_documents(db, page=page, page_size=page_size)
@@ -114,6 +114,8 @@ async def save_content(
         raise HTTPException(status_code=404, detail="Document not found")
 
     doc = await document_service.get_document(db, doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
     await _attach_version_stats(db, doc)
 
     result = DocumentDetail.model_validate(doc)
@@ -127,14 +129,26 @@ async def upload_content(
     file: UploadFile,
     db: AsyncSession = Depends(get_db),
 ) -> DocumentDetail:
-    raw = await file.read()
-    content = raw.decode("utf-8")
+    if file.content_type and not file.content_type.startswith(("text/", "application/xhtml")):
+        raise HTTPException(status_code=400, detail="Only HTML files are accepted")
+
+    MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+
+    try:
+        content = data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=422, detail="File is not valid UTF-8")
 
     version = await document_service.upload_content(db, doc_id, content)
     if version is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
     doc = await document_service.get_document(db, doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
     await _attach_version_stats(db, doc)
 
     result = DocumentDetail.model_validate(doc)
