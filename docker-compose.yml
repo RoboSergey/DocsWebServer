@@ -8,6 +8,7 @@ services:
     environment:
       - DATABASE_PATH=/data/documents.db
       - HOST_IP=192.168.0.126
+      - SECRET_KEY=change-me-in-production
     restart: unless-stopped
 
 volumes:
