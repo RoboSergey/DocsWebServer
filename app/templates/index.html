@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Documents - Document Web Server{% endblock %}
+
+{% block content %}
+<header>
+    <hgroup>
+        <h1>Documents</h1>
+        <p>Manage your HTML documents</p>
+    </hgroup>
+    <form id="create-form"
+          hx-post="/api/documents"
+          hx-ext="json-enc"
+          hx-on::after-request="if(event.detail.successful){this.reset();window.location='/edit/'+JSON.parse(event.detail.xhr.responseText).id}">
+        <div style="display:flex; gap:0.5rem; align-items:end">
+            <label style="flex:1; margin:0">
+                <span class="visually-hidden">Document title</span>
+                <input type="text" name="title" placeholder="Document title" required autofocus>
+            </label>
+            <button type="submit">Create</button>
+        </div>
+    </form>
+</header>
+
+<div id="document-list"
+     hx-get="/partials/documents"
+     hx-trigger="load"
+     hx-swap="outerHTML">
+    <p aria-busy="true">Loading documents...</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/app.js"></script>
+{% endblock %}

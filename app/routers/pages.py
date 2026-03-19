@@ -11,6 +11,22 @@ from app.templates_config import templates
 router = APIRouter(tags=["pages"])
 
 
+@router.get("/")
+async def index(request: Request, db: AsyncSession = Depends(get_db)):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+@router.get("/partials/documents")
+async def partial_documents(request: Request, db: AsyncSession = Depends(get_db)):
+    from app.services.document_service import list_documents
+
+    docs, total = await list_documents(db)
+    return templates.TemplateResponse(
+        "partials/document_list.html",
+        {"request": request, "documents": docs},
+    )
+
+
 def _check_token(doc_share_mode: str, doc_share_token: str | None, provided_token: str | None) -> None:
     """Raise 403 if share_mode is 'token' and provided token does not match."""
     if doc_share_mode == "token":
