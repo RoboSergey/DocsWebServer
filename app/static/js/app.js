@@ -6,6 +6,8 @@ const state = {
     editorContent: '',
     dirty: false,
     folderNames: {},    // id → name, populated in loadSidebar
+    openFolderIds: new Set(),          // tracks which folders are expanded
+    drag: { type: null, id: null, sortOrder: null },  // active drag payload
 };
 
 // ─── CodeMirror init ──────────────────────────────────────────────────────
@@ -63,6 +65,15 @@ async function loadSidebar() {
     treeRoot.innerHTML = '';
     renderFolderList(folders, treeRoot);
     renderDocList(rootDocs, treeRoot, null);
+    setupRootDropTarget();
+    // Restore open folder state after re-render
+    for (const folderId of state.openFolderIds) {
+        const row = document.querySelector(`.folder-item[data-folder-id="${folderId}"]`);
+        if (!row) continue;
+        row.classList.add('open');
+        const childWrap = row.nextElementSibling;
+        if (childWrap) childWrap.classList.add('open');
+    }
 }
 
 function renderFolderList(folders, container) {
@@ -72,8 +83,13 @@ function renderFolderList(folders, container) {
         const row = document.createElement('div');
         row.className = 'sidebar-item folder-item';
         row.dataset.folderId = folder.id;
+        row.dataset.sortOrder = folder.sort_order ?? 0;
+        row.draggable = true;
         row.innerHTML = `<span class="chevron"><svg viewBox="0 0 6 10" xmlns="http://www.w3.org/2000/svg"><path d="M1 1l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></span><span class="icon">📁</span><span class="label">${escHtml(folder.name)}</span>`;
         row.addEventListener('click', () => toggleFolder(row, folder));
+        row.addEventListener('dragstart', (e) => onDragStart(e, 'folder', folder.id, folder.sort_order ?? 0));
+        row.addEventListener('dragend', onDragEnd);
+        setupFolderRowDrop(row, folder.id);
 
         const deleteBtn = document.createElement('button');
         deleteBtn.type = 'button';
@@ -94,8 +110,10 @@ function renderFolderList(folders, container) {
 
         const children = document.createElement('div');
         children.className = 'folder-children';
+        children.dataset.parentFolderId = folder.id;
         renderFolderList(folder.children || [], children);
         renderDocList(folder.documents || [], children, folder.id);
+        setupContainerDrop(children, folder.id);
         wrap.appendChild(children);
 
         container.appendChild(wrap);
@@ -107,8 +125,12 @@ function renderDocList(docs, container, folderId) {
         const row = document.createElement('div');
         row.className = 'sidebar-item doc-item' + (doc.id === state.currentDocId ? ' active' : '');
         row.dataset.docId = doc.id;
+        row.dataset.sortOrder = doc.sort_order ?? 0;
+        row.draggable = true;
         row.innerHTML = `<span></span><span class="icon">📄</span><span class="label">${escHtml(doc.title)}</span>`;
         row.addEventListener('click', () => selectDocument(doc.id, folderId));
+        row.addEventListener('dragstart', (e) => onDragStart(e, 'doc', doc.id, doc.sort_order ?? 0));
+        row.addEventListener('dragend', onDragEnd);
         container.appendChild(row);
     }
 }
@@ -117,7 +139,13 @@ function toggleFolder(row, folder) {
     row.classList.toggle('open');
     const childWrap = row.nextElementSibling;
     childWrap.classList.toggle('open');
-    state.currentFolderId = row.classList.contains('open') ? folder.id : null;
+    if (row.classList.contains('open')) {
+        state.openFolderIds.add(folder.id);
+        state.currentFolderId = folder.id;
+    } else {
+        state.openFolderIds.delete(folder.id);
+        state.currentFolderId = null;
+    }
 }
 
 // ─── Document selection ───────────────────────────────────────────────────
@@ -404,6 +432,137 @@ function escHtml(s) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#x27;');
+}
+
+// ─── Drag and Drop ────────────────────────────────────────────────────────
+
+function onDragStart(e, type, id, sortOrder) {
+    state.drag = { type, id, sortOrder };
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id); // required for Firefox
+}
+
+function onDragEnd() {
+    state.drag = { type: null, id: null, sortOrder: null };
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+}
+
+// Drop on a folder ROW → move dragged item into that folder (append to end)
+function setupFolderRowDrop(row, folderId) {
+    row.addEventListener('dragover', (e) => {
+        if (!state.drag.id || state.drag.id === folderId) return;
+        e.stopPropagation();
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+        row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', (e) => {
+        if (!row.contains(e.relatedTarget)) row.classList.remove('drag-over');
+    });
+    row.addEventListener('drop', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        row.classList.remove('drag-over');
+        const childWrap = row.nextElementSibling;
+        const existingCount = childWrap
+            ? [...childWrap.children].filter(el => el.classList.contains('sidebar-item')).length
+            : 0;
+        await performDrop(folderId, existingCount);
+    });
+}
+
+// Drop on a CONTAINER (folder-children div or #tree-root) → reorder within
+function setupContainerDrop(container, parentFolderId) {
+    container.addEventListener('dragover', (e) => {
+        if (!state.drag.id) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        container.classList.add('drag-over');
+
+        let indicator = container.querySelector(':scope > .drop-indicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.className = 'drop-indicator';
+        }
+
+        const items = [...container.children].filter(
+            el => el !== indicator && (el.classList.contains('sidebar-item') || el.tagName === 'DIV')
+        );
+        let insertBefore = null;
+        for (const item of items) {
+            const rect = item.getBoundingClientRect();
+            if (e.clientY < rect.top + rect.height / 2) { insertBefore = item; break; }
+        }
+        if (insertBefore) container.insertBefore(indicator, insertBefore);
+        else container.appendChild(indicator);
+    });
+    container.addEventListener('dragleave', (e) => {
+        if (!container.contains(e.relatedTarget)) {
+            container.classList.remove('drag-over');
+            container.querySelector(':scope > .drop-indicator')?.remove();
+        }
+    });
+    container.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        container.classList.remove('drag-over');
+        const indicator = container.querySelector(':scope > .drop-indicator');
+        const prev = indicator?.previousElementSibling;
+        const newSortOrder = prev && prev.dataset.sortOrder !== undefined
+            ? parseInt(prev.dataset.sortOrder) + 1
+            : 0;
+        indicator?.remove();
+        await performDrop(parentFolderId, newSortOrder);
+    });
+}
+
+function setupRootDropTarget() {
+    setupContainerDrop(treeRoot, null);
+}
+
+function isFolderDescendant(folderId, targetId) {
+    // Is targetId inside folderId in the DOM? Walk up from targetId's row.
+    let el = document.querySelector(`.sidebar-item[data-folder-id="${targetId}"]`);
+    while (el) {
+        const parentChildren = el.closest('.folder-children');
+        if (!parentChildren) break;
+        const parentRow = parentChildren.previousElementSibling;
+        if (!parentRow?.dataset?.folderId) break;
+        if (parentRow.dataset.folderId === folderId) return true;
+        el = parentRow;
+    }
+    return false;
+}
+
+async function performDrop(targetFolderId, sortOrder) {
+    if (!state.drag.id) return;
+    const { type, id } = state.drag;
+
+    if (type === 'folder' && targetFolderId !== null) {
+        if (id === targetFolderId || isFolderDescendant(id, targetFolderId)) {
+            showToast('Cannot move a folder into its own subfolder');
+            return;
+        }
+    }
+
+    const url = type === 'doc'
+        ? `/api/documents/${id}/position`
+        : `/api/folders/${id}/position`;
+    const body = type === 'doc'
+        ? { folder_id: targetFolderId, sort_order: sortOrder }
+        : { parent_id: targetFolderId, sort_order: sortOrder };
+
+    const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        showToast(res.status === 422 ? 'Cannot move folder into its own subfolder' : 'Move failed');
+        return;
+    }
+    await loadSidebar();
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
