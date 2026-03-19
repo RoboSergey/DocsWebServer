@@ -769,6 +769,20 @@ document.getElementById('ctx-share').addEventListener('click', async () => {
         .catch(() => showToast('Copy failed'));
 });
 
+document.getElementById('ctx-save').addEventListener('click', async () => {
+    const itemId = ctxItemId;
+    if (!itemId) return;
+    const res = await fetch(`/api/documents/${itemId}`);
+    if (!res.ok) { showToast('Failed to fetch document'); return; }
+    const doc = await res.json();
+    const blob = new Blob([doc.content ?? ''], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${doc.title}.html`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+});
+
 document.getElementById('ctx-delete').addEventListener('click', async () => {
     const type = ctxType;
     const itemId = ctxItemId;
