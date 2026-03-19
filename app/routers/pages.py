@@ -29,6 +29,16 @@ async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+@router.get("/login")
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+
+@router.get("/admin")
+async def admin_page(request: Request):
+    return templates.TemplateResponse("admin.html", {"request": request})
+
+
 def _check_token(doc_share_mode: str, doc_share_token: str | None, provided_token: str | None) -> None:
     """Raise 403 if share_mode is 'token' and provided token does not match."""
     if doc_share_mode == "token":
