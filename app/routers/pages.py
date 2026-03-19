@@ -12,15 +12,13 @@ router = APIRouter(tags=["pages"])
 
 
 @router.get("/")
-async def index(request: Request, db: AsyncSession = Depends(get_db)):
+async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
 @router.get("/partials/documents")
 async def partial_documents(request: Request, db: AsyncSession = Depends(get_db)):
-    from app.services.document_service import list_documents
-
-    docs, total = await list_documents(db)
+    docs, total = await document_service.list_documents(db)
     return templates.TemplateResponse(
         "partials/document_list.html",
         {"request": request, "documents": docs},
