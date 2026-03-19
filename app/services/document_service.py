@@ -10,6 +10,7 @@ from app.models import Document, Version
 
 async def list_documents(
     db: AsyncSession,
+    user_id: str,
     page: int = 1,
     page_size: int = 20,
     folder_id: str | None = None,  # None = no filter (all documents)
@@ -30,7 +31,7 @@ async def list_documents(
     )
 
     # Build where clauses
-    where = [Document.is_deleted.is_(False)]
+    where = [Document.is_deleted.is_(False), Document.user_id == user_id]
     if folder_id is not None:
         where.append(Document.folder_id == folder_id)
 
@@ -63,17 +64,26 @@ async def list_documents(
     return documents, total
 
 
-async def get_document(db: AsyncSession, doc_id: str) -> Document | None:
-    """Returns Document or None if not found / soft-deleted."""
+async def get_document(
+    db: AsyncSession, doc_id: str, user_id: str | None = None
+) -> Document | None:
+    """Returns Document or None if not found / soft-deleted.
+
+    If user_id is provided, filters by owner (used for authenticated endpoints).
+    If user_id is None, no user filter is applied (used by unauthenticated preview endpoints).
+    """
     stmt = select(Document).where(
         Document.id == doc_id,
         Document.is_deleted.is_(False),
     )
+    if user_id is not None:
+        stmt = stmt.where(Document.user_id == user_id)
     return (await db.execute(stmt)).scalar_one_or_none()
 
 
 async def create_document(
     db: AsyncSession,
+    user_id: str,
     title: str,
     content: str = "",
     folder_id: str | None = None,
@@ -91,6 +101,7 @@ async def create_document(
         title=title,
         folder_id=folder_id,
         sort_order=sort_order,
+        user_id=user_id,
     )
     db.add(doc)
     await db.flush()  # generate the PK before creating Version
@@ -126,9 +137,9 @@ async def update_document_title(
     return doc
 
 
-async def delete_document(db: AsyncSession, doc_id: str) -> bool:
+async def delete_document(db: AsyncSession, doc_id: str, user_id: str) -> bool:
     """Soft-deletes a document. Returns True if found, False otherwise."""
-    doc = await get_document(db, doc_id)
+    doc = await get_document(db, doc_id, user_id=user_id)
     if doc is None:
         return False
 
@@ -141,11 +152,12 @@ async def delete_document(db: AsyncSession, doc_id: str) -> bool:
 async def save_content(
     db: AsyncSession,
     doc_id: str,
+    user_id: str,
     content: str,
     source: str = "editor",
 ) -> Version | None:
     """Creates a new Version for the document. Returns new Version or None if not found."""
-    doc = await get_document(db, doc_id)
+    doc = await get_document(db, doc_id, user_id=user_id)
     if doc is None:
         return None
 
@@ -181,10 +193,11 @@ async def save_content(
 async def upload_content(
     db: AsyncSession,
     doc_id: str,
+    user_id: str,
     content: str,
 ) -> Version | None:
     """Same as save_content but source='upload'."""
-    return await save_content(db, doc_id, content, source="upload")
+    return await save_content(db, doc_id, user_id, content, source="upload")
 
 
 async def move_document(
