@@ -192,10 +192,18 @@ async def move_document(
     doc_id: str,
     folder_id: str | None,
 ) -> Document | None:
-    """Moves a document to a folder (or to root if folder_id is None). Returns updated Document or None if not found."""
+    """Moves a document to a folder (or to root if folder_id is None).
+    Assigns sort_order = MAX+1 in destination folder. Returns updated Document or None if not found."""
     doc = await get_document(db, doc_id)
     if doc is None:
         return None
+    # Assign sort_order at end of destination folder
+    max_stmt = select(func.max(Document.sort_order)).where(
+        Document.folder_id == folder_id,
+        Document.is_deleted.is_(False),
+    )
+    max_order: int | None = (await db.execute(max_stmt)).scalar_one_or_none()
+    doc.sort_order = (max_order if max_order is not None else -1) + 1
     doc.folder_id = folder_id
     doc.updated_at = datetime.now(timezone.utc)
     await db.commit()
@@ -206,6 +214,7 @@ async def move_document(
 async def set_document_position(
     db: AsyncSession, doc_id: str, folder_id: str | None, sort_order: int
 ) -> Document | None:
+    """Sets document folder_id and sort_order atomically. Returns updated Document or None if not found."""
     doc = await get_document(db, doc_id)
     if doc is None:
         return None

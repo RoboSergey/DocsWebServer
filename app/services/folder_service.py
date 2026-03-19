@@ -59,7 +59,12 @@ async def create_folder(
     max_stmt = select(func.max(Folder.sort_order)).where(Folder.parent_id == parent_id)
     max_order: int | None = (await db.execute(max_stmt)).scalar_one_or_none()
     sort_order = (max_order if max_order is not None else -1) + 1
-    folder = Folder(id=str(uuid.uuid4()), name=name, parent_id=parent_id, sort_order=sort_order)
+    folder = Folder(
+        id=str(uuid.uuid4()),
+        name=name,
+        parent_id=parent_id,
+        sort_order=sort_order,
+    )
     db.add(folder)
     await db.commit()
     await db.refresh(folder)
