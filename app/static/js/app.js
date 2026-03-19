@@ -74,6 +74,22 @@ function renderFolderList(folders, container) {
         row.dataset.folderId = folder.id;
         row.innerHTML = `<span class="chevron"><svg viewBox="0 0 6 10" xmlns="http://www.w3.org/2000/svg"><path d="M1 1l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></span><span class="icon">📁</span><span class="label">${escHtml(folder.name)}</span>`;
         row.addEventListener('click', () => toggleFolder(row, folder));
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'folder-delete-btn';
+        deleteBtn.title = 'Delete folder';
+        deleteBtn.textContent = '×';
+        deleteBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (!confirm(`Delete folder "${folder.name}"?\n\nDocuments inside will be moved to the parent level.`)) return;
+            const res = await fetch(`/api/folders/${folder.id}`, { method: 'DELETE' });
+            if (!res.ok) { showToast('Delete folder failed'); return; }
+            await loadSidebar();
+            showToast('Folder deleted');
+        });
+        row.appendChild(deleteBtn);
+
         wrap.appendChild(row);
 
         const children = document.createElement('div');
@@ -226,8 +242,10 @@ fileInput.addEventListener('change', async () => {
 btnDelete.addEventListener('click', async () => {
     if (!state.currentDocId) return;
     if (!confirm('Delete this document?')) return;
-    const res = await fetch(`/api/documents/${state.currentDocId}`, { method: 'DELETE' });
+    const docId = state.currentDocId;
+    const res = await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
     if (!res.ok) { showToast('Delete failed'); return; }
+    document.querySelector(`.sidebar-item[data-doc-id="${docId}"]`)?.remove();
     state.currentDocId = null;
     state.dirty = false;
     toolbarTitle.textContent = 'Select a document';
@@ -236,7 +254,7 @@ btnDelete.addEventListener('click', async () => {
     previewIframe.style.display = 'none';
     editorWrap.style.display = 'none';
     closePanel();
-    await loadSidebar();
+    showToast('Deleted');
 });
 
 // ─── New document ─────────────────────────────────────────────────────────
