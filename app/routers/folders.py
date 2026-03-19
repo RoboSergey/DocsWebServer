@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
-from app.schemas import FolderCreate, FolderRename, FolderResponse, FolderTree
+from app.schemas import FolderCreate, FolderPosition, FolderRename, FolderResponse, FolderTree
 from app.services import folder_service
 
 router = APIRouter(prefix="/api/folders", tags=["folders"])
@@ -42,3 +42,20 @@ async def delete_folder(
     found = await folder_service.delete_folder(db, folder_id)
     if not found:
         raise HTTPException(status_code=404, detail="Folder not found")
+
+
+@router.patch("/{folder_id}/position", response_model=FolderResponse)
+async def set_folder_position(
+    folder_id: str, body: FolderPosition, db: AsyncSession = Depends(get_db)
+) -> FolderResponse:
+    folder, status = await folder_service.set_folder_position(
+        db, folder_id, body.parent_id, body.sort_order
+    )
+    if status == "not_found":
+        raise HTTPException(status_code=404, detail="Folder not found")
+    if status == "cycle":
+        raise HTTPException(
+            status_code=422,
+            detail="Cannot move a folder into its own descendant",
+        )
+    return FolderResponse.model_validate(folder)

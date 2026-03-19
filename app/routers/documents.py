@@ -11,6 +11,7 @@ from app.schemas import (
     DocumentDetail,
     DocumentListResponse,
     DocumentMove,
+    DocumentPosition,
     DocumentResponse,
     DocumentUpdate,
 )
@@ -145,6 +146,20 @@ async def move_document(
     result = DocumentDetail.model_validate(doc)
     result.content = content
     return result
+
+
+@router.patch("/{doc_id}/position", response_model=DocumentResponse)
+async def set_document_position(
+    doc_id: str, body: DocumentPosition, db: AsyncSession = Depends(get_db)
+) -> DocumentResponse:
+    doc = await document_service.set_document_position(
+        db, doc_id, body.folder_id, body.sort_order
+    )
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    doc.version_count = 0   # type: ignore[attr-defined]
+    doc.latest_version = None   # type: ignore[attr-defined]
+    return DocumentResponse.model_validate(doc)
 
 
 @router.post("/{doc_id}/upload", response_model=DocumentDetail)
