@@ -1,7 +1,8 @@
 import secrets
+import socket
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
@@ -9,6 +10,21 @@ from app.services import document_service
 from app.templates_config import templates
 
 router = APIRouter(tags=["pages"])
+
+
+@router.get("/api/server-info")
+async def server_info(request: Request):
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        local_ip = request.base_url.hostname
+    port = request.base_url.port
+    scheme = request.base_url.scheme
+    origin = f"{scheme}://{local_ip}" + (f":{port}" if port and port not in (80, 443) else "")
+    return JSONResponse({"origin": origin})
 
 
 @router.get("/")

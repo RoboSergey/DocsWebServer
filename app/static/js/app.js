@@ -379,13 +379,24 @@ btnShare.addEventListener('click', async () => {
     panel.classList.add('open');
 });
 
+async function getShareOrigin() {
+    try {
+        const r = await fetch('/api/server-info');
+        if (r.ok) return (await r.json()).origin;
+    } catch (_) {}
+    return location.origin;
+}
+
 async function renderSharePanel() {
-    const res = await fetch(`/api/documents/${state.currentDocId}/sharing`);
+    const [res, shareOrigin] = await Promise.all([
+        fetch(`/api/documents/${state.currentDocId}/sharing`),
+        getShareOrigin(),
+    ]);
     if (!res.ok) return;
     const settings = await res.json();
     const shareUrl = settings.share_mode === 'token' && settings.share_token
-        ? `${location.origin}/preview/${state.currentDocId}?token=${settings.share_token}`
-        : `${location.origin}/preview/${state.currentDocId}`;
+        ? `${shareOrigin}/preview/${state.currentDocId}?token=${settings.share_token}`
+        : `${shareOrigin}/preview/${state.currentDocId}`;
 
     panelShare.innerHTML = `
         <div class="share-row">
@@ -744,12 +755,15 @@ document.getElementById('ctx-rename').addEventListener('click', async () => {
 document.getElementById('ctx-share').addEventListener('click', async () => {
     const itemId = ctxItemId;
     if (!itemId) return;
-    const res = await fetch(`/api/documents/${itemId}/sharing`);
+    const [res, shareOrigin] = await Promise.all([
+        fetch(`/api/documents/${itemId}/sharing`),
+        getShareOrigin(),
+    ]);
     if (!res.ok) return;
     const settings = await res.json();
     const shareUrl = settings.share_mode === 'token' && settings.share_token
-        ? `${location.origin}/preview/${itemId}?token=${settings.share_token}`
-        : `${location.origin}/preview/${itemId}`;
+        ? `${shareOrigin}/preview/${itemId}?token=${settings.share_token}`
+        : `${shareOrigin}/preview/${itemId}`;
     navigator.clipboard.writeText(shareUrl)
         .then(() => showToast('Link copied!'))
         .catch(() => showToast('Copy failed'));
