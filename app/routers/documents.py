@@ -157,8 +157,7 @@ async def set_document_position(
     )
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    doc.version_count = 0   # type: ignore[attr-defined]
-    doc.latest_version = None   # type: ignore[attr-defined]
+    await _attach_version_stats(db, doc)
     return DocumentResponse.model_validate(doc)
 
 
