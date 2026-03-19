@@ -136,12 +136,13 @@ const state = {
 
 ### Key flows
 
-**Select document:**
+**Select document (with dirty-state guard):**
 1. Click doc in sidebar
-2. `GET /api/documents/{id}` → fetch content
-3. Set `state.currentDocId`, `state.editorContent = content`
-4. Set `iframe.srcdoc = content`
-5. Show toolbar with doc title
+2. If `state.dirty === true` → show browser `confirm()` "You have unsaved changes. Discard?" — if cancelled, abort
+3. `GET /api/documents/{id}` → fetch content
+4. Set `state.currentDocId`, `state.editorContent = content`, `state.dirty = false`
+5. Set `iframe.srcdoc = content`; if in edit mode, `cm.setValue(content)`
+6. Show toolbar with doc title
 
 **Switch to Edit mode:**
 1. Click Edit button (pencil icon)
@@ -201,12 +202,26 @@ Switch from CodeMirror 6 (ES modules via esm.sh — unreliable) to **CodeMirror 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
 ```
 
+CM5 CDN (add to `<head>`):
+
+```html
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<!-- Dark theme for dark mode -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+```
+
 CM5 API in `app.js`:
 
 ```javascript
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 const cm = CodeMirror(document.getElementById('editor'), {
     mode: 'htmlmixed',
-    theme: 'default',   // or 'material-darker' in dark mode
+    theme: prefersDark ? 'material-darker' : 'default',
     lineNumbers: true,
     lineWrapping: true,
     tabSize: 2,
