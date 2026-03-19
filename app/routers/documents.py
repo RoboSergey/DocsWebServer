@@ -9,6 +9,7 @@ from app.schemas import (
     DocumentCreate,
     DocumentDetail,
     DocumentListResponse,
+    DocumentMove,
     DocumentResponse,
     DocumentUpdate,
 )
@@ -32,9 +33,12 @@ async def _attach_version_stats(db: AsyncSession, doc: Document) -> None:
 async def list_documents(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    folder_id: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> DocumentListResponse:
-    documents, total = await document_service.list_documents(db, page=page, page_size=page_size)
+    documents, total = await document_service.list_documents(
+        db, page=page, page_size=page_size, folder_id=folder_id
+    )
     return DocumentListResponse(
         documents=[DocumentResponse.model_validate(doc) for doc in documents],
         total=total,
@@ -120,6 +124,22 @@ async def save_content(
 
     result = DocumentDetail.model_validate(doc)
     result.content = body.content
+    return result
+
+
+@router.put("/{doc_id}/move", response_model=DocumentDetail)
+async def move_document(
+    doc_id: str,
+    body: DocumentMove,
+    db: AsyncSession = Depends(get_db),
+) -> DocumentDetail:
+    doc = await document_service.move_document(db, doc_id, body.folder_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    await _attach_version_stats(db, doc)
+    content = await document_service.get_latest_content(db, doc_id)
+    result = DocumentDetail.model_validate(doc)
+    result.content = content
     return result
 
 

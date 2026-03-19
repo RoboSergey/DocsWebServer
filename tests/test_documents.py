@@ -117,3 +117,64 @@ class TestDocumentCRUD:
         assert len(data["documents"]) == 3
         assert data["page_size"] == 3
         assert data["page"] == 1
+
+
+class TestDocumentFolderSupport:
+    async def test_create_document_with_folder_id(self, client):
+        folder = (await client.post("/api/folders", json={"name": "Work"})).json()
+        res = await client.post(
+            "/api/documents",
+            json={"title": "Foldered Doc", "folder_id": folder["id"]},
+        )
+        assert res.status_code == 201
+        assert res.json()["folder_id"] == folder["id"]
+
+    async def test_move_document_to_folder(self, client):
+        folder = (await client.post("/api/folders", json={"name": "Work"})).json()
+        doc = (await client.post("/api/documents", json={"title": "Doc"})).json()
+        res = await client.put(
+            f"/api/documents/{doc['id']}/move",
+            json={"folder_id": folder["id"]},
+        )
+        assert res.status_code == 200
+        assert res.json()["folder_id"] == folder["id"]
+
+    async def test_move_document_to_root(self, client):
+        folder = (await client.post("/api/folders", json={"name": "Work"})).json()
+        doc = (
+            await client.post(
+                "/api/documents",
+                json={"title": "Doc", "folder_id": folder["id"]},
+            )
+        ).json()
+        res = await client.put(
+            f"/api/documents/{doc['id']}/move", json={"folder_id": None}
+        )
+        assert res.status_code == 200
+        assert res.json()["folder_id"] is None
+
+    async def test_move_document_not_found(self, client):
+        res = await client.put(
+            "/api/documents/nonexistent/move", json={"folder_id": None}
+        )
+        assert res.status_code == 404
+
+    async def test_list_documents_filtered_by_folder(self, client):
+        folder = (await client.post("/api/folders", json={"name": "Work"})).json()
+        await client.post("/api/documents", json={"title": "In Folder", "folder_id": folder["id"]})
+        await client.post("/api/documents", json={"title": "At Root"})
+
+        res = await client.get(f"/api/documents?folder_id={folder['id']}")
+        assert res.status_code == 200
+        docs = res.json()["documents"]
+        assert len(docs) == 1
+        assert docs[0]["title"] == "In Folder"
+
+    async def test_list_documents_no_filter_returns_all(self, client):
+        folder = (await client.post("/api/folders", json={"name": "Work"})).json()
+        await client.post("/api/documents", json={"title": "In Folder", "folder_id": folder["id"]})
+        await client.post("/api/documents", json={"title": "At Root"})
+
+        res = await client.get("/api/documents")
+        assert res.status_code == 200
+        assert res.json()["total"] == 2

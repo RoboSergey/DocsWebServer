@@ -12,6 +12,7 @@ async def list_documents(
     db: AsyncSession,
     page: int = 1,
     page_size: int = 20,
+    folder_id: str | None = None,  # None = no filter (all documents)
 ) -> tuple[list[Document], int]:
     """Returns (documents, total_count), excluding soft-deleted documents.
 
@@ -28,11 +29,12 @@ async def list_documents(
         .subquery()
     )
 
-    # Total count query
-    count_stmt = (
-        select(func.count(Document.id))
-        .where(Document.is_deleted.is_(False))
-    )
+    # Build where clauses
+    where = [Document.is_deleted.is_(False)]
+    if folder_id is not None:
+        where.append(Document.folder_id == folder_id)
+
+    count_stmt = select(func.count(Document.id)).where(*where)
     total: int = (await db.execute(count_stmt)).scalar_one()
 
     # Paginated query with version stats
@@ -43,7 +45,7 @@ async def list_documents(
             version_counts.c.latest_version,
         )
         .outerjoin(version_counts, Document.id == version_counts.c.document_id)
-        .where(Document.is_deleted.is_(False))
+        .where(*where)
         .order_by(Document.updated_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
@@ -175,6 +177,21 @@ async def upload_content(
 ) -> Version | None:
     """Same as save_content but source='upload'."""
     return await save_content(db, doc_id, content, source="upload")
+
+
+async def move_document(
+    db: AsyncSession,
+    doc_id: str,
+    folder_id: str | None,
+) -> Document | None:
+    doc = await get_document(db, doc_id)
+    if doc is None:
+        return None
+    doc.folder_id = folder_id
+    doc.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(doc)
+    return doc
 
 
 async def get_latest_content(db: AsyncSession, doc_id: str) -> str | None:
