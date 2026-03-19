@@ -1,32 +1,36 @@
 /* ===== CSS Variables (light mode) ===== */
 :root {
     --sidebar-width: 260px;
-    --sidebar-bg: #f2f2f2;
+    --sidebar-bg: #f5f5f5;
     --sidebar-text: #333;
-    --sidebar-hover: #e0e0e0;
-    --sidebar-active: #d4d4d4;
+    --sidebar-hover: #e8e8e8;
+    --sidebar-active: #dcd6f0;
+    --sidebar-active-text: #4b2d8a;
+    --accent-light: #ede9f8;
     --main-bg: #ffffff;
-    --toolbar-bg: #f8f8f8;
-    --border: #ddd;
+    --toolbar-bg: #fafafa;
+    --border: #e0e0e0;
     --accent: #7b5ea7;
     --text: #1a1a1a;
     --muted: #888;
     --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-    --font-ui: system-ui, -apple-system, sans-serif;
+    --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
     --radius: 4px;
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --sidebar-bg: #1e1e1e;
+        --sidebar-bg: #1e1e2e;
         --sidebar-text: #dcddde;
-        --sidebar-hover: #2a2a2a;
-        --sidebar-active: #404040;
-        --main-bg: #2d2d2d;
-        --toolbar-bg: #252525;
-        --border: #3a3a3a;
-        --text: #dcddde;
-        --muted: #888;
+        --sidebar-hover: #2a2a3a;
+        --sidebar-active: #3a3060;
+        --sidebar-active-text: #c4b5f4;
+        --accent-light: #2d2550;
+        --main-bg: #1e1e2e;
+        --toolbar-bg: #181825;
+        --border: #313244;
+        --text: #cdd6f4;
+        --muted: #6c7086;
     }
 }
 
