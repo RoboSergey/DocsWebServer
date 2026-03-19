@@ -11,7 +11,7 @@
     {% block head %}{% endblock %}
 </head>
 <body>
-    <main class="container">
+    <main class="{% block main_class %}container{% endblock %}">
         {% block content %}{% endblock %}
     </main>
     <div id="toast-container" aria-live="polite"></div>

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Edit: {{ document.title }}{% endblock %}
+
+{% block main_class %}editor-main{% endblock %}
+
+{% block head %}
+<script type="importmap">
+{
+    "imports": {
+        "codemirror": "https://esm.sh/codemirror@6",
+        "@codemirror/lang-html": "https://esm.sh/@codemirror/lang-html@6",
+        "@codemirror/view": "https://esm.sh/@codemirror/view@6",
+        "@codemirror/state": "https://esm.sh/@codemirror/state@6"
+    }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="editor-layout">
+    <!-- Toolbar -->
+    <header class="editor-toolbar">
+        <div class="editor-toolbar-left">
+            <a href="/">← Documents</a>
+            <input type="text" id="doc-title" value="{{ document.title }}"
+                   style="font-weight:bold; border:none; background:transparent; font-size:1rem"
+                   data-doc-id="{{ document.id }}">
+        </div>
+        <div class="editor-toolbar-right">
+            <button id="save-btn" onclick="saveDocument()">Save (Ctrl+S)</button>
+            <button id="history-btn" class="outline secondary" onclick="window.location='/history/{{ document.id }}'">History</button>
+            <label for="file-upload" class="outline" role="button">Upload</label>
+            <input type="file" id="file-upload" accept=".html,.htm" style="display:none">
+            <button id="share-btn" class="outline" onclick="toggleSharePanel()">Share</button>
+        </div>
+    </header>
+
+    <!-- Share panel (hidden by default) -->
+    <div id="share-panel" style="display:none" class="share-panel">
+        <div>
+            <strong>Share settings</strong>
+            <select id="share-mode-select" onchange="updateShareMode(this.value)">
+                <option value="public">Public (anyone with link)</option>
+                <option value="token">Token-protected</option>
+            </select>
+            <input type="text" id="share-url" readonly placeholder="Share URL">
+            <button onclick="copyShareUrl()">Copy Link</button>
+            <button class="outline secondary" onclick="regenerateToken()">New Token</button>
+        </div>
+    </div>
+
+    <!-- Editor + Preview split pane -->
+    <div class="editor-container">
+        <div class="editor-pane">
+            <div id="editor"></div>
+        </div>
+        <div class="preview-pane">
+            <iframe id="preview-frame" sandbox="allow-scripts" style="width:100%;height:100%;border:none"></iframe>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.DOC_ID = "{{ document.id }}";
+    window.INITIAL_CONTENT = {{ document.content | tojson }};
+    window.INITIAL_TITLE = {{ document.title | tojson }};
+    window.INITIAL_SHARE_MODE = {{ document.share_mode | tojson }};
+    window.INITIAL_SHARE_TOKEN = {{ (document.share_token or '') | tojson }};
+</script>
+<script src="/static/js/app.js"></script>
+<script type="module" src="/static/js/editor.js"></script>
+{% endblock %}

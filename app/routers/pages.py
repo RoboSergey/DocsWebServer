@@ -34,6 +34,16 @@ def _check_token(doc_share_mode: str, doc_share_token: str | None, provided_toke
             raise HTTPException(status_code=403, detail="Invalid or missing share token")
 
 
+@router.get("/edit/{doc_id}")
+async def edit_document(doc_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    doc = await document_service.get_document(db, doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    content = await document_service.get_latest_content(db, doc_id)
+    doc.content = content  # type: ignore[attr-defined]
+    return templates.TemplateResponse("editor.html", {"request": request, "document": doc})
+
+
 @router.get("/preview/{doc_id}")
 async def preview_document(
     doc_id: str,
