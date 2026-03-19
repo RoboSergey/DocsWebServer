@@ -21,7 +21,7 @@ None.
 
 ## API Changes
 
-None.
+None — all endpoints used by the context menu (`GET /api/documents/{id}/sharing`, `DELETE /api/documents/{id}`) are pre-existing.
 
 ---
 
@@ -76,11 +76,12 @@ if (savedWidth) {
 }
 ```
 
-Resize logic (~25 lines):
+Resize logic (~25 lines).
+
+Because `#sidebar` is flush with the left edge of the viewport (no margin or offset), `e.clientX` equals the sidebar's right edge and can be used directly as the new width:
 
 ```javascript
 const sidebarResizer = document.getElementById('sidebar-resizer');
-const sidebar = document.getElementById('sidebar');
 const MIN_WIDTH = 160;
 const MAX_WIDTH = 480;
 
@@ -231,7 +232,20 @@ document.getElementById('ctx-delete').addEventListener('click', async () => {
 });
 ```
 
-**Edge case:** If the context menu would overflow the right or bottom edge of the viewport, clamp its position so it stays on screen.
+**Viewport overflow clamping:** After calling `contextMenu.classList.add('open')` (which makes the element visible and gives it measurable dimensions), clamp the position so the menu never overflows the viewport:
+
+```javascript
+contextMenu.classList.add('open');
+const menuRect = contextMenu.getBoundingClientRect();
+let left = e.clientX;
+let top = e.clientY;
+if (left + menuRect.width > window.innerWidth) left = window.innerWidth - menuRect.width - 4;
+if (top + menuRect.height > window.innerHeight) top = window.innerHeight - menuRect.height - 4;
+contextMenu.style.left = left + 'px';
+contextMenu.style.top = top + 'px';
+```
+
+The clamping must happen after `classList.add('open')` because `getBoundingClientRect()` returns zeroes on a hidden element.
 
 ---
 
@@ -373,10 +387,10 @@ function showModal({ title, message = '', inputs = [], confirmText = 'OK', cance
 
         function close(result) {
             overlay.classList.remove('open');
-            confirmBtn.replaceWith(confirmBtn.cloneNode(true));
-            cancelBtn.replaceWith(cancelBtn.cloneNode(true));
             overlay.removeEventListener('click', onOverlayClick);
             document.removeEventListener('keydown', onKey);
+            confirmBtn.removeEventListener('click', confirm);
+            cancelBtn.removeEventListener('click', cancel);
             resolve(result);
         }
 
@@ -396,9 +410,10 @@ function showModal({ title, message = '', inputs = [], confirmText = 'OK', cance
             }
         }
 
-        // Re-grab after potential cloneNode
-        document.getElementById('modal-confirm').addEventListener('click', confirm);
-        document.getElementById('modal-cancel').addEventListener('click', () => close(null));
+        function cancel() { close(null); }
+
+        confirmBtn.addEventListener('click', confirm);
+        cancelBtn.addEventListener('click', cancel);
         overlay.addEventListener('click', onOverlayClick);
         document.addEventListener('keydown', onKey);
     });
@@ -414,6 +429,7 @@ function showModal({ title, message = '', inputs = [], confirmText = 'OK', cance
 | `confirm('You have unsaved changes. Discard?')` | `await showModal({ title: 'Unsaved changes', message: 'Discard changes?', confirmText: 'Discard', danger: true })` |
 | `confirm('Delete this document?')` | `await showModal({ title: 'Delete document', message: 'This cannot be undone.', confirmText: 'Delete', danger: true })` |
 | `confirm(\`Delete folder "${folder.name}"?...\`)` | `await showModal({ title: \`Delete "${folder.name}"\`, message: 'Documents will be moved to the parent level.', confirmText: 'Delete', danger: true })` |
+| `confirm('You have unsaved changes. Discard?')` inside `selectDocument` | Same as above row — the `selectDocument` function body must be updated; this call is inside `selectDocument`, not at call sites |
 
 ---
 
