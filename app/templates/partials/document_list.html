@@ -10,7 +10,7 @@
         <small>
             {{ doc.version_count }} version{{ 's' if doc.version_count != 1 else '' }}
             &middot;
-            Updated {{ doc.updated_at.strftime('%b %d, %Y') }}
+            Updated {{ doc.updated_at.strftime('%b %d, %Y') if doc.updated_at else 'N/A' }}
         </small>
         <div>
             <a href="/edit/{{ doc.id }}" role="button" class="outline secondary" style="padding:0.25rem 0.75rem">Edit</a>

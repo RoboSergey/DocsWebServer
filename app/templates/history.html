@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}History: {{ document.title }}{% endblock %}
+
+{% block content %}
+<header>
+    <hgroup>
+        <h1>{{ document.title }}</h1>
+        <p>Version history &middot; {{ versions|length }} version{{ 's' if versions|length != 1 else '' }}</p>
+    </hgroup>
+    <a href="/edit/{{ document.id }}" role="button" class="outline secondary">← Back to Editor</a>
+</header>
+
+{% if versions %}
+<table>
+    <thead>
+        <tr>
+            <th scope="col">Version</th>
+            <th scope="col">Date</th>
+            <th scope="col">Source</th>
+            <th scope="col">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for version in versions %}
+        <tr>
+            <td>#{{ version.version_num }}</td>
+            <td>{{ version.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td><code>{{ version.source }}</code></td>
+            <td>
+                <button class="outline secondary"
+                        style="padding:0.25rem 0.75rem; margin-right:0.5rem"
+                        onclick="restoreVersion({{ version.version_num }})">
+                    Restore
+                </button>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="text-muted">No versions yet. Start editing to create versions.</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/app.js"></script>
+<script>
+const DOC_ID = {{ document.id | tojson }};
+
+async function restoreVersion(versionNum) {
+    if (!confirm('Restore version ' + versionNum + '? This will create a new version with the old content.')) return;
+
+    try {
+        const res = await fetch('/api/documents/' + DOC_ID + '/versions/' + versionNum + '/restore', {
+            method: 'POST'
+        });
+        if (!res.ok) throw new Error('Restore failed');
+        showToast('Version restored — redirecting to editor...');
+        setTimeout(() => { window.location = '/edit/' + DOC_ID; }, 1500);
+    } catch (e) {
+        showToast('Restore failed: ' + e.message);
+    }
+}
+</script>
+{% endblock %}
