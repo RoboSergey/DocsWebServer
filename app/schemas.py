@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class DocumentCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=500)
     content: str = Field(default="", max_length=10_000_000)  # optional initial content
+    folder_id: str | None = None
 
 
 class DocumentUpdate(BaseModel):
@@ -26,6 +27,7 @@ class DocumentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     share_mode: str
+    folder_id: str | None = None
     version_count: int = 0
     latest_version: int | None = None
 
@@ -72,3 +74,36 @@ class ShareSettings(BaseModel):
 
 class ShareUpdate(BaseModel):
     share_mode: Literal["public", "token"]
+
+
+class FolderCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    parent_id: str | None = None
+
+
+class FolderRename(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+
+
+class FolderResponse(BaseModel):
+    id: str
+    name: str
+    parent_id: str | None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FolderTree(FolderResponse):
+    children: list["FolderTree"] = []
+    documents: list[DocumentResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Required: Pydantic v2 needs model_rebuild() for self-referential models
+FolderTree.model_rebuild()
+
+
+class DocumentMove(BaseModel):
+    folder_id: str | None = None
