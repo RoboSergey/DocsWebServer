@@ -41,3 +41,22 @@ class DocumentListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class VersionResponse(BaseModel):
+    id: int
+    document_id: str
+    version_num: int
+    created_at: datetime
+    source: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class VersionDetail(VersionResponse):
+    content: str
+
+
+class VersionListResponse(BaseModel):
+    versions: list[VersionResponse]
+    total: int
