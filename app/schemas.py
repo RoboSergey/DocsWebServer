@@ -63,7 +63,7 @@ class VersionListResponse(BaseModel):
 
 
 class ShareSettings(BaseModel):
-    share_mode: str
+    share_mode: Literal["public", "token"]
     share_token: str | None
     share_url: str | None = None  # computed by router
 
