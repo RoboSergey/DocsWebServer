@@ -2,6 +2,9 @@ import { EditorView, basicSetup } from "codemirror";
 import { html } from "@codemirror/lang-html";
 import { keymap } from "@codemirror/view";
 
+// Set title input from server data (avoids raw Jinja interpolation in HTML attribute)
+document.getElementById('doc-title').value = window.INITIAL_TITLE;
+
 // Initialize editor
 let editorView;
 
@@ -68,6 +71,9 @@ async function saveDocument() {
             });
             if (titleRes.ok) {
                 window.INITIAL_TITLE = title;
+            } else {
+                showToast('Title update failed');
+                return;
             }
         }
 
@@ -106,47 +112,60 @@ document.getElementById('file-upload').addEventListener('change', async (e) => {
 });
 
 // Share panel
-let shareLoaded = false;
+let shareVisible = false;
 
 async function toggleSharePanel() {
     const panel = document.getElementById('share-panel');
-    if (panel.style.display === 'none') {
-        panel.style.display = 'block';
-        if (!shareLoaded) {
-            await loadShareSettings();
-            shareLoaded = true;
-        }
-    } else {
-        panel.style.display = 'none';
+    shareVisible = !shareVisible;
+    panel.style.display = shareVisible ? 'block' : 'none';
+    if (shareVisible) {
+        await loadShareSettings();
     }
 }
 
 async function loadShareSettings() {
-    const res = await fetch(`/api/documents/${window.DOC_ID}/sharing`);
-    const data = await res.json();
-    document.getElementById('share-mode-select').value = data.share_mode;
-    document.getElementById('share-url').value = data.share_url || '';
+    try {
+        const res = await fetch(`/api/documents/${window.DOC_ID}/sharing`);
+        if (!res.ok) throw new Error('Failed to load share settings');
+        const data = await res.json();
+        document.getElementById('share-mode-select').value = data.share_mode;
+        document.getElementById('share-url').value = data.share_url || '';
+    } catch (e) {
+        showToast('Could not load share settings');
+    }
 }
 
 async function updateShareMode(mode) {
-    await fetch(`/api/documents/${window.DOC_ID}/sharing`, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({share_mode: mode})
-    });
-    await loadShareSettings();
-    showToast('Share mode updated');
+    try {
+        const res = await fetch(`/api/documents/${window.DOC_ID}/sharing`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({share_mode: mode})
+        });
+        if (!res.ok) throw new Error('Update failed');
+        await loadShareSettings();
+        showToast('Share mode updated');
+    } catch (e) {
+        showToast('Share mode update failed');
+    }
 }
 
 async function regenerateToken() {
-    await fetch(`/api/documents/${window.DOC_ID}/sharing/regenerate-token`, {method: 'POST'});
-    await loadShareSettings();
-    showToast('New token generated');
+    try {
+        const res = await fetch(`/api/documents/${window.DOC_ID}/sharing/regenerate-token`, {method: 'POST'});
+        if (!res.ok) throw new Error('Regeneration failed');
+        await loadShareSettings();
+        showToast('New token generated');
+    } catch (e) {
+        showToast('Token regeneration failed');
+    }
 }
 
 function copyShareUrl() {
     const url = document.getElementById('share-url').value;
-    navigator.clipboard.writeText(url).then(() => showToast('Link copied!'));
+    navigator.clipboard.writeText(url)
+        .then(() => showToast('Link copied!'))
+        .catch(() => showToast('Copy failed — please copy manually'));
 }
 
 // Expose functions needed by inline HTML event handlers

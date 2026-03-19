@@ -23,9 +23,8 @@
     <header class="editor-toolbar">
         <div class="editor-toolbar-left">
             <a href="/">← Documents</a>
-            <input type="text" id="doc-title" value="{{ document.title }}"
-                   style="font-weight:bold; border:none; background:transparent; font-size:1rem"
-                   data-doc-id="{{ document.id }}">
+            <input type="text" id="doc-title"
+                   style="font-weight:bold; border:none; background:transparent; font-size:1rem">
         </div>
         <div class="editor-toolbar-right">
             <button id="save-btn" onclick="saveDocument()">Save (Ctrl+S)</button>
@@ -64,7 +63,7 @@
 
 {% block scripts %}
 <script>
-    window.DOC_ID = "{{ document.id }}";
+    window.DOC_ID = {{ document.id | tojson }};
     window.INITIAL_CONTENT = {{ document.content | tojson }};
     window.INITIAL_TITLE = {{ document.title | tojson }};
     window.INITIAL_SHARE_MODE = {{ document.share_mode | tojson }};

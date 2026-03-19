@@ -125,6 +125,10 @@
     border-right: 1px solid var(--pico-muted-border-color);
 }
 
+#editor {
+    height: 100%;
+}
+
 .editor-pane .cm-editor {
     height: 100%;
 }
