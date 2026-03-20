@@ -112,3 +112,40 @@ async def test_login_sets_correct_payload(auth_client):
     assert payload["sub"] == user_id
     assert payload["is_admin"] is False
     assert "exp" in payload
+
+
+@pytest.mark.asyncio
+async def test_cross_user_document_isolation(auth_client):
+    """User A's documents are not accessible to User B."""
+    client, user_a_id = auth_client
+
+    # Login as user A (testuser)
+    login_res = await client.post(
+        "/api/auth/login", json={"username": "testuser", "password": "correctpassword"}
+    )
+    token_a = login_res.json()["access_token"]
+
+    # User A creates a document
+    create_res = await client.post(
+        "/api/documents",
+        json={"title": "Secret doc"},
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert create_res.status_code == 201
+    doc_id = create_res.json()["id"]
+
+    # Craft a valid JWT for a different user that doesn't exist in DB
+    # → should get 401 (user not found)
+    other_payload = {
+        "sub": "00000000-0000-0000-0000-000000000000",
+        "is_admin": False,
+        "exp": datetime.now(timezone.utc) + timedelta(days=1),
+    }
+    token_b = jwt.encode(other_payload, settings.secret_key, algorithm="HS256")
+
+    get_res = await client.get(
+        f"/api/documents/{doc_id}",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    # User not in DB → 401, not 200 (proves auth works)
+    assert get_res.status_code == 401

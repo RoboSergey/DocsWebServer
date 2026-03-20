@@ -124,9 +124,10 @@ async def update_document_title(
     db: AsyncSession,
     doc_id: str,
     title: str,
+    user_id: str,
 ) -> Document | None:
     """Updates document title. Returns updated Document or None if not found."""
-    doc = await get_document(db, doc_id)
+    doc = await get_document(db, doc_id, user_id=user_id)
     if doc is None:
         return None
 
@@ -204,9 +205,10 @@ async def move_document(
     db: AsyncSession,
     doc_id: str,
     folder_id: str | None,
+    user_id: str,
 ) -> Document | None:
     """Move doc to folder; appends to end (sort_order = MAX+1). None if not found."""
-    doc = await get_document(db, doc_id)
+    doc = await get_document(db, doc_id, user_id=user_id)
     if doc is None:
         return None
     # Assign sort_order at end of destination folder
@@ -224,10 +226,10 @@ async def move_document(
 
 
 async def set_document_position(
-    db: AsyncSession, doc_id: str, folder_id: str | None, sort_order: int
+    db: AsyncSession, doc_id: str, folder_id: str | None, sort_order: int, user_id: str
 ) -> Document | None:
     """Set folder_id and sort_order atomically. None if not found."""
-    doc = await get_document(db, doc_id)
+    doc = await get_document(db, doc_id, user_id=user_id)
     if doc is None:
         return None
     doc.folder_id = folder_id

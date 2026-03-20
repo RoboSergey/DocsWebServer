@@ -89,11 +89,7 @@ async def update_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DocumentDetail:
-    # Verify ownership before updating
-    owned = await document_service.get_document(db, doc_id, user_id=current_user.id)
-    if owned is None:
-        raise HTTPException(status_code=404, detail="Document not found")
-    doc = await document_service.update_document_title(db, doc_id, body.title)
+    doc = await document_service.update_document_title(db, doc_id, body.title, user_id=current_user.id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -146,12 +142,8 @@ async def move_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DocumentDetail:
-    # Verify ownership before moving
-    owned = await document_service.get_document(db, doc_id, user_id=current_user.id)
-    if owned is None:
-        raise HTTPException(status_code=404, detail="Document not found")
     try:
-        doc = await document_service.move_document(db, doc_id, body.folder_id)
+        doc = await document_service.move_document(db, doc_id, body.folder_id, user_id=current_user.id)
     except IntegrityError:
         raise HTTPException(status_code=422, detail="Invalid folder_id: folder not found")
     if doc is None:
@@ -167,12 +159,8 @@ async def move_document(
 async def set_document_position(
     doc_id: str, body: DocumentPosition, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ) -> DocumentResponse:
-    # Verify ownership before repositioning
-    owned = await document_service.get_document(db, doc_id, user_id=current_user.id)
-    if owned is None:
-        raise HTTPException(status_code=404, detail="Document not found")
     doc = await document_service.set_document_position(
-        db, doc_id, body.folder_id, body.sort_order
+        db, doc_id, body.folder_id, body.sort_order, user_id=current_user.id
     )
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")

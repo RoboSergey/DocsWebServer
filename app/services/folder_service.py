@@ -101,7 +101,7 @@ async def set_folder_position(
         return None, "not_found"
     if parent_id is not None:
         # Cycle check: walk ancestors of parent_id to ensure folder_id is not among them
-        all_result = await db.execute(select(Folder))
+        all_result = await db.execute(select(Folder).where(Folder.user_id == user_id))
         folder_map = {f.id: f for f in all_result.scalars().all()}
         current = parent_id
         while current is not None:
