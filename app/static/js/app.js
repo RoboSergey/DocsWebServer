@@ -1,3 +1,25 @@
+if (!localStorage.getItem('authToken')) {
+  window.location.href = '/login';
+}
+
+function apiFetch(url, options = {}) {
+  const token = localStorage.getItem('authToken');
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+    },
+  }).then(res => {
+    if (res.status === 401) {
+      localStorage.removeItem('authToken');
+      window.location.href = '/login';
+      throw new Error('Unauthorized');
+    }
+    return res;
+  });
+}
+
 // ─── State ────────────────────────────────────────────────────────────────
 const state = {
     currentDocId: null,
@@ -45,8 +67,8 @@ const panelShare      = document.getElementById('panel-share');
 // ─── Sidebar rendering ────────────────────────────────────────────────────
 async function loadSidebar() {
     const [foldersRes, docsRes] = await Promise.all([
-        fetch('/api/folders'),
-        fetch('/api/documents?page_size=100'),
+        apiFetch('/api/folders'),
+        apiFetch('/api/documents?page_size=100'),
     ]);
     const folders = await foldersRes.json();
     const { documents } = await docsRes.json();
@@ -149,7 +171,7 @@ async function selectDocument(docId, folderId = null) {
 
     state.currentFolderId = folderId;
 
-    const res = await fetch(`/api/documents/${docId}`);
+    const res = await apiFetch(`/api/documents/${docId}`);
     if (!res.ok) { showToast('Error loading document'); return; }
     const doc = await res.json();
 
@@ -216,7 +238,7 @@ btnToggleEdit.addEventListener('click', () => {
 async function saveDocument() {
     if (!state.currentDocId) return;
     const content = cm.getValue();
-    const res = await fetch(`/api/documents/${state.currentDocId}/content`, {
+    const res = await apiFetch(`/api/documents/${state.currentDocId}/content`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
@@ -229,6 +251,11 @@ async function saveDocument() {
 
 btnSave.addEventListener('click', saveDocument);
 
+document.getElementById('btn-logout').addEventListener('click', () => {
+  localStorage.removeItem('authToken');
+  window.location.href = '/login';
+});
+
 // ─── File upload (sidebar — creates new document from file) ───────────────
 btnUploadDoc.addEventListener('click', () => fileInput.click());
 
@@ -238,7 +265,7 @@ fileInput.addEventListener('change', async () => {
     const title = file.name.replace(/\.html?$/i, '');
 
     // Create the document first
-    const createRes = await fetch('/api/documents', {
+    const createRes = await apiFetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, folder_id: state.currentFolderId }),
@@ -249,7 +276,7 @@ fileInput.addEventListener('change', async () => {
     // Upload the file content
     const formData = new FormData();
     formData.append('file', file);
-    const uploadRes = await fetch(`/api/documents/${newDoc.id}/upload`, {
+    const uploadRes = await apiFetch(`/api/documents/${newDoc.id}/upload`, {
         method: 'POST',
         body: formData,
     });
@@ -272,7 +299,7 @@ btnDelete.addEventListener('click', async () => {
     });
     if (!confirmed) return;
     const docId = state.currentDocId;
-    const res = await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/documents/${docId}`, { method: 'DELETE' });
     if (!res.ok) { showToast('Delete failed'); return; }
     document.querySelector(`.sidebar-item[data-doc-id="${docId}"]`)?.remove();
     state.currentDocId = null;
@@ -296,7 +323,7 @@ btnNewDoc.addEventListener('click', async () => {
     if (!result) return;
     const title = result['modal-doc-title']?.trim();
     if (!title) return;
-    const res = await fetch('/api/documents', {
+    const res = await apiFetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, folder_id: state.currentFolderId }),
@@ -317,7 +344,7 @@ btnNewFolder.addEventListener('click', async () => {
     if (!result) return;
     const name = result['modal-folder-name']?.trim();
     if (!name) return;
-    const res = await fetch('/api/folders', {
+    const res = await apiFetch('/api/folders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, parent_id: state.currentFolderId }),
@@ -333,7 +360,7 @@ btnHistory.addEventListener('click', async () => {
     closePanel();
     if (isOpen) return;
 
-    const res = await fetch(`/api/documents/${state.currentDocId}/versions`);
+    const res = await apiFetch(`/api/documents/${state.currentDocId}/versions`);
     if (!res.ok) return;
     const { versions } = await res.json();
 
@@ -351,7 +378,7 @@ btnHistory.addEventListener('click', async () => {
 
 window.restoreVersion = async (versionNum) => {
     if (!state.currentDocId) return;
-    const res = await fetch(
+    const res = await apiFetch(
         `/api/documents/${state.currentDocId}/versions/${versionNum}/restore`,
         { method: 'POST' }
     );
@@ -381,7 +408,7 @@ btnShare.addEventListener('click', async () => {
 
 async function getShareOrigin() {
     try {
-        const r = await fetch('/api/server-info');
+        const r = await apiFetch('/api/server-info');
         if (r.ok) return (await r.json()).origin;
     } catch (_) {}
     return location.origin;
@@ -389,7 +416,7 @@ async function getShareOrigin() {
 
 async function renderSharePanel() {
     const [res, shareOrigin] = await Promise.all([
-        fetch(`/api/documents/${state.currentDocId}/sharing`),
+        apiFetch(`/api/documents/${state.currentDocId}/sharing`),
         getShareOrigin(),
     ]);
     if (!res.ok) return;
@@ -415,7 +442,7 @@ async function renderSharePanel() {
 
     document.getElementById('btn-save-share').addEventListener('click', async () => {
         const mode = document.getElementById('share-mode-select').value;
-        await fetch(`/api/documents/${state.currentDocId}/sharing`, {
+        await apiFetch(`/api/documents/${state.currentDocId}/sharing`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ share_mode: mode }),
@@ -424,7 +451,7 @@ async function renderSharePanel() {
     });
 
     document.getElementById('btn-regen-token')?.addEventListener('click', async () => {
-        await fetch(`/api/documents/${state.currentDocId}/sharing/regenerate-token`, { method: 'POST' });
+        await apiFetch(`/api/documents/${state.currentDocId}/sharing/regenerate-token`, { method: 'POST' });
         await renderSharePanel();
     });
 }
@@ -651,7 +678,7 @@ async function performDrop(targetFolderId, sortOrder) {
         ? { folder_id: targetFolderId, sort_order: sortOrder }
         : { parent_id: targetFolderId, sort_order: sortOrder };
 
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -726,7 +753,7 @@ document.getElementById('ctx-rename').addEventListener('click', async () => {
     if (!name) return;
 
     if (type === 'doc') {
-        const res = await fetch(`/api/documents/${itemId}`, {
+        const res = await apiFetch(`/api/documents/${itemId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title: name }),
@@ -740,7 +767,7 @@ document.getElementById('ctx-rename').addEventListener('click', async () => {
                 : escHtml(name);
         }
     } else {
-        const res = await fetch(`/api/folders/${itemId}`, {
+        const res = await apiFetch(`/api/folders/${itemId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name }),
@@ -756,7 +783,7 @@ document.getElementById('ctx-share').addEventListener('click', async () => {
     const itemId = ctxItemId;
     if (!itemId) return;
     const [res, shareOrigin] = await Promise.all([
-        fetch(`/api/documents/${itemId}/sharing`),
+        apiFetch(`/api/documents/${itemId}/sharing`),
         getShareOrigin(),
     ]);
     if (!res.ok) return;
@@ -772,7 +799,7 @@ document.getElementById('ctx-share').addEventListener('click', async () => {
 document.getElementById('ctx-save').addEventListener('click', async () => {
     const itemId = ctxItemId;
     if (!itemId) return;
-    const res = await fetch(`/api/documents/${itemId}`);
+    const res = await apiFetch(`/api/documents/${itemId}`);
     if (!res.ok) { showToast('Failed to fetch document'); return; }
     const doc = await res.json();
     const blob = new Blob([doc.content ?? ''], { type: 'text/html' });
@@ -795,7 +822,7 @@ document.getElementById('ctx-delete').addEventListener('click', async () => {
     });
     if (!confirmed) return;
     if (type === 'doc') {
-        const res = await fetch(`/api/documents/${itemId}`, { method: 'DELETE' });
+        const res = await apiFetch(`/api/documents/${itemId}`, { method: 'DELETE' });
         if (!res.ok) { showToast('Delete failed'); return; }
         document.querySelector(`.sidebar-item[data-doc-id="${itemId}"]`)?.remove();
         if (state.currentDocId === itemId) {
@@ -809,7 +836,7 @@ document.getElementById('ctx-delete').addEventListener('click', async () => {
             closePanel();
         }
     } else {
-        const res = await fetch(`/api/folders/${itemId}`, { method: 'DELETE' });
+        const res = await apiFetch(`/api/folders/${itemId}`, { method: 'DELETE' });
         if (!res.ok) { showToast('Delete failed'); return; }
         await loadSidebar();
     }
