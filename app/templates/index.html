@@ -11,12 +11,86 @@
       <button type="button" class="btn icon-btn" id="btn-upload-doc" title="Upload HTML file">⬆</button>
       <button type="button" class="btn icon-btn" id="btn-new-folder" title="New folder">📁</button>
       <input type="file" id="file-input" accept=".html,text/html" style="display:none;">
-      <button type="button" class="btn icon-btn" id="btn-logout" title="Logout">⇥</button>
     </div>
     <div id="sidebar-tree">
       <div id="tree-root"></div>
     </div>
+    <div id="sidebar-footer">
+      <button type="button" class="btn icon-btn" id="btn-config" title="Settings">⚙</button>
+    </div>
   </aside>
+
+  <!-- ── Settings popup ── -->
+  <div id="config-overlay">
+    <div id="config-popup" role="dialog" aria-modal="true" aria-labelledby="config-title">
+      <h3 id="config-title">Settings</h3>
+      <div id="config-admin-section" style="display:none;">
+        <button type="button" class="popup-action" id="config-manage-users">Manage users</button>
+        <div class="popup-sep"></div>
+      </div>
+      <button type="button" class="popup-action" id="config-logout">Logout</button>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+        <button type="button" class="btn" id="config-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Admin popup ── -->
+  <div id="admin-overlay">
+    <div id="admin-popup" role="dialog" aria-modal="true" aria-labelledby="admin-title">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h3 id="admin-title" style="margin:0;">Manage users</h3>
+        <button type="button" class="btn" id="admin-close">Close</button>
+      </div>
+      <div id="admin-error" style="display:none;padding:8px 12px;background:#fed7d7;color:#c53030;border-radius:4px;margin-bottom:12px;font-size:.875rem;"></div>
+      <div id="admin-success" style="display:none;padding:8px 12px;background:#c6f6d5;color:#276749;border-radius:4px;margin-bottom:12px;font-size:.875rem;"></div>
+      <table id="admin-user-table" style="width:100%;border-collapse:collapse;margin-bottom:4px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);">
+            <th style="text-align:left;padding:6px 8px;font-size:.8rem;color:var(--muted);">Username</th>
+            <th style="text-align:left;padding:6px 8px;font-size:.8rem;color:var(--muted);">Admin</th>
+            <th style="text-align:left;padding:6px 8px;font-size:.8rem;color:var(--muted);">Created</th>
+            <th style="padding:6px 8px;"></th>
+          </tr>
+        </thead>
+        <tbody id="admin-user-body"></tbody>
+      </table>
+
+      <!-- Inline reset-password panel -->
+      <div id="admin-reset-panel" style="display:none;border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin:8px 0 4px;">
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:8px;">Reset password for <strong id="admin-reset-username"></strong></p>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="password" id="admin-reset-pw-input" placeholder="New password"
+            style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--main-bg);color:var(--text);font-size:.875rem;">
+          <button type="button" class="btn primary" id="admin-reset-confirm">Save</button>
+          <button type="button" class="btn" id="admin-reset-cancel">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Inline delete-confirm panel -->
+      <div id="admin-delete-panel" style="display:none;border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin:8px 0 4px;">
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:8px;">Delete <strong id="admin-delete-username"></strong> and all their documents?</p>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="btn danger" id="admin-delete-confirm">Delete</button>
+          <button type="button" class="btn" id="admin-delete-cancel">Cancel</button>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding-top:16px;">
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:10px;">Add user</p>
+        <form id="admin-add-form" style="display:grid;gap:8px;">
+          <input type="text" id="admin-new-username" placeholder="Username" required
+            style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--main-bg);color:var(--text);font-size:.875rem;">
+          <input type="password" id="admin-new-password" placeholder="Password" required
+            style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--main-bg);color:var(--text);font-size:.875rem;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:.875rem;">
+            <input type="checkbox" id="admin-new-is-admin"> Admin
+          </label>
+          <button type="submit" class="btn primary" style="justify-self:start;">Add user</button>
+        </form>
+      </div>
+    </div>
+  </div>
   <div id="sidebar-resizer"></div>
 
   <!-- ── Main area ── -->

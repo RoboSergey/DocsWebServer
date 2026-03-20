@@ -251,9 +251,158 @@ async function saveDocument() {
 
 btnSave.addEventListener('click', saveDocument);
 
-document.getElementById('btn-logout').addEventListener('click', () => {
-  localStorage.removeItem('authToken');
-  window.location.href = '/login';
+// ── Config popup ──
+(function () {
+  const overlay = document.getElementById('config-overlay');
+  const adminSection = document.getElementById('config-admin-section');
+  let isAdmin = false;
+
+  try {
+    const token = localStorage.getItem('authToken');
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    isAdmin = !!payload.is_admin;
+    if (isAdmin) adminSection.style.display = 'block';
+  } catch (_) {}
+
+  document.getElementById('btn-config').addEventListener('click', () => overlay.classList.add('open'));
+  document.getElementById('config-close').addEventListener('click', () => overlay.classList.remove('open'));
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
+
+  document.getElementById('config-logout').addEventListener('click', () => {
+    localStorage.removeItem('authToken');
+    window.location.href = '/login';
+  });
+
+  if (isAdmin) {
+    document.getElementById('config-manage-users').addEventListener('click', () => {
+      overlay.classList.remove('open');
+      openAdminPopup();
+    });
+  }
+})();
+
+// ── Admin popup ──
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function openAdminPopup() {
+  document.getElementById('admin-overlay').classList.add('open');
+  document.getElementById('admin-reset-panel').style.display = 'none';
+  adminLoadUsers();
+}
+
+function adminShowError(msg) {
+  document.getElementById('admin-success').style.display = 'none';
+  const el = document.getElementById('admin-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function adminShowSuccess(msg) {
+  document.getElementById('admin-error').style.display = 'none';
+  const el = document.getElementById('admin-success');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+async function adminLoadUsers() {
+  document.getElementById('admin-error').style.display = 'none';
+  const res = await apiFetch('/api/admin/users');
+  if (!res.ok) { adminShowError('Failed to load users'); return; }
+  const users = await res.json();
+  const tbody = document.getElementById('admin-user-body');
+  tbody.innerHTML = '';
+  users.forEach(u => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border)';
+    tr.innerHTML = `
+      <td style="padding:6px 8px;font-size:.875rem;">${escHtml(u.username)}</td>
+      <td style="padding:6px 8px;font-size:.875rem;">${u.is_admin ? '✓' : ''}</td>
+      <td style="padding:6px 8px;font-size:.875rem;">${new Date(u.created_at).toLocaleDateString()}</td>
+      <td style="padding:6px 8px;display:flex;gap:6px;">
+        <button class="btn" onclick="adminShowResetPanel('${u.id}','${escHtml(u.username)}')">Reset PW</button>
+        <button class="btn danger" onclick="adminDeleteUser('${u.id}','${escHtml(u.username)}')">Delete</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+let _deleteUserId = null;
+
+function adminDeleteUser(id, username) {
+  _deleteUserId = id;
+  document.getElementById('admin-delete-username').textContent = username;
+  document.getElementById('admin-reset-panel').style.display = 'none';
+  document.getElementById('admin-delete-panel').style.display = 'block';
+}
+
+document.getElementById('admin-delete-cancel').addEventListener('click', () => {
+  document.getElementById('admin-delete-panel').style.display = 'none';
+  _deleteUserId = null;
+});
+
+document.getElementById('admin-delete-confirm').addEventListener('click', async () => {
+  const res = await apiFetch(`/api/admin/users/${_deleteUserId}`, { method: 'DELETE' });
+  document.getElementById('admin-delete-panel').style.display = 'none';
+  _deleteUserId = null;
+  if (!res.ok) { const d = await res.json(); adminShowError(d.detail || 'Delete failed'); return; }
+  adminLoadUsers();
+});
+
+let _resetUserId = null;
+
+function adminShowResetPanel(id, username) {
+  _resetUserId = id;
+  document.getElementById('admin-reset-username').textContent = username;
+  document.getElementById('admin-reset-pw-input').value = '';
+  document.getElementById('admin-reset-panel').style.display = 'block';
+  document.getElementById('admin-reset-pw-input').focus();
+}
+
+document.getElementById('admin-reset-cancel').addEventListener('click', () => {
+  document.getElementById('admin-reset-panel').style.display = 'none';
+  _resetUserId = null;
+});
+
+document.getElementById('admin-reset-confirm').addEventListener('click', async () => {
+  const pw = document.getElementById('admin-reset-pw-input').value.trim();
+  if (!pw) return;
+  const res = await apiFetch(`/api/admin/users/${_resetUserId}/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pw }),
+  });
+  if (!res.ok) { const d = await res.json(); adminShowError(d.detail || 'Reset failed'); return; }
+  document.getElementById('admin-reset-panel').style.display = 'none';
+  _resetUserId = null;
+  adminShowSuccess('Password updated.');
+});
+
+document.getElementById('admin-close').addEventListener('click', () =>
+  document.getElementById('admin-overlay').classList.remove('open'));
+document.getElementById('admin-overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('admin-overlay'))
+    document.getElementById('admin-overlay').classList.remove('open');
+});
+
+document.getElementById('admin-add-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const username = document.getElementById('admin-new-username').value.trim();
+  const password = document.getElementById('admin-new-password').value;
+  const is_admin = document.getElementById('admin-new-is-admin').checked;
+  const res = await apiFetch('/api/admin/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, is_admin }),
+  });
+  if (!res.ok) { const d = await res.json(); adminShowError(d.detail || 'Create failed'); return; }
+  document.getElementById('admin-new-username').value = '';
+  document.getElementById('admin-new-password').value = '';
+  document.getElementById('admin-new-is-admin').checked = false;
+  adminShowSuccess(`User "${username}" created. They can now log in.`);
+  adminLoadUsers();
 });
 
 // ─── File upload (sidebar — creates new document from file) ───────────────

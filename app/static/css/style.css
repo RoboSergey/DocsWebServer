@@ -69,6 +69,67 @@ body { font-family: var(--font-ui); background: var(--main-bg); color: var(--tex
     padding: 4px 0;
 }
 
+#sidebar-footer {
+    padding: 6px 8px;
+    border-top: 1px solid var(--border);
+    background: var(--toolbar-bg);
+    flex-shrink: 0;
+}
+
+/* ── Shared popup overlay ── */
+#config-overlay,
+#admin-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+#config-overlay.open,
+#admin-overlay.open { display: flex; }
+
+#config-popup,
+#admin-popup {
+    background: var(--toolbar-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+}
+#config-popup { width: 240px; }
+#admin-popup  { width: 560px; max-height: 80vh; overflow-y: auto; }
+
+#config-popup h3,
+#admin-popup  h3 {
+    margin-bottom: 16px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.popup-action {
+    display: block;
+    width: 100%;
+    padding: 9px 12px;
+    margin-bottom: 4px;
+    font-size: .875rem;
+    font-family: var(--font-ui);
+    color: var(--text);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    text-align: left;
+    cursor: pointer;
+}
+.popup-action:hover { background: var(--sidebar-hover); }
+
+.popup-sep {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 0;
+}
+
 #main {
     flex: 1;
     display: flex;
