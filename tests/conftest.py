@@ -6,10 +6,13 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 import app.models  # noqa: F401 — ensures models are registered on Base.metadata
 from app.main import app
 from app.database import Base
-from app.dependencies import get_db
+from app.dependencies import get_db, get_current_user
+from app.models import User
 
 # In-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+fake_user = User(id="test-user-id", username="testuser", password="x", is_admin=True)
 
 
 @pytest_asyncio.fixture
@@ -36,8 +39,10 @@ async def client(db_session):
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = lambda: fake_user
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
-    app.dependency_overrides.clear()
+    app.dependency_overrides.pop(get_db, None)
+    app.dependency_overrides.pop(get_current_user, None)
