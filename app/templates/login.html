@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Login — DocsWebServer{% endblock %}
+
+{% block body %}
+<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
+  <div style="width:320px;padding:2rem;border:1px solid var(--border);border-radius:8px;background:var(--bg-secondary);">
+    <h2 style="margin:0 0 1.5rem;text-align:center;">Sign In</h2>
+    <div id="error-msg" style="display:none;color:var(--danger,#e53e3e);margin-bottom:1rem;font-size:.875rem;"></div>
+    <form id="login-form">
+      <div style="margin-bottom:1rem;">
+        <label style="display:block;margin-bottom:.25rem;font-size:.875rem;">Username</label>
+        <input type="text" id="username" name="username" required autocomplete="username"
+          style="width:100%;box-sizing:border-box;padding:.5rem .75rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:1rem;">
+      </div>
+      <div style="margin-bottom:1.5rem;">
+        <label style="display:block;margin-bottom:.25rem;font-size:.875rem;">Password</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password"
+          style="width:100%;box-sizing:border-box;padding:.5rem .75rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:1rem;">
+      </div>
+      <button type="submit" class="btn primary" style="width:100%;">Sign In</button>
+    </form>
+  </div>
+</div>
+<script>
+document.getElementById('login-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('error-msg');
+  errEl.style.display = 'none';
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password}),
+    });
+    if (res.status === 401) {
+      errEl.textContent = 'Invalid username or password.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (!res.ok) {
+      errEl.textContent = 'Login failed. Please try again.';
+      errEl.style.display = 'block';
+      return;
+    }
+    const data = await res.json();
+    localStorage.setItem('authToken', data.access_token);
+    window.location.href = '/';
+  } catch (err) {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.style.display = 'block';
+  }
+});
+</script>
+{% endblock %}

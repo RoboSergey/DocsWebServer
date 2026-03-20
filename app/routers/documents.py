@@ -3,8 +3,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db
-from app.models import Document, Version
+from app.dependencies import get_current_user, get_db
+from app.models import Document, User, Version
 from app.schemas import (
     ContentSave,
     DocumentCreate,
@@ -37,9 +37,10 @@ async def list_documents(
     page_size: int = Query(20, ge=1, le=100),
     folder_id: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DocumentListResponse:
     documents, total = await document_service.list_documents(
-        db, page=page, page_size=page_size, folder_id=folder_id
+        db, user_id=current_user.id, page=page, page_size=page_size, folder_id=folder_id
     )
     return DocumentListResponse(
         documents=[DocumentResponse.model_validate(doc) for doc in documents],
@@ -53,8 +54,9 @@ async def list_documents(
 async def create_document(
     body: DocumentCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DocumentDetail:
-    doc = await document_service.create_document(db, title=body.title, content=body.content, folder_id=body.folder_id)
+    doc = await document_service.create_document(db, user_id=current_user.id, title=body.title, content=body.content, folder_id=body.folder_id)
     await _attach_version_stats(db, doc)
     content = await document_service.get_latest_content(db, doc.id)
     result = DocumentDetail.model_validate(doc)
@@ -66,8 +68,9 @@ async def create_document(
 async def get_document(
     doc_id: str,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DocumentDetail:
-    doc = await document_service.get_document(db, doc_id)
+    doc = await document_service.get_document(db, doc_id, user_id=current_user.id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -84,8 +87,9 @@ async def update_document(
     doc_id: str,
     body: DocumentUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DocumentDetail:
-    doc = await document_service.update_document_title(db, doc_id, body.title)
+    doc = await document_service.update_document_title(db, doc_id, body.title, user_id=current_user.id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -101,8 +105,9 @@ async def update_document(
 async def delete_document(
     doc_id: str,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> None:
-    found = await document_service.delete_document(db, doc_id)
+    found = await document_service.delete_document(db, doc_id, user_id=current_user.id)
     if not found:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -112,14 +117,15 @@ async def save_content(
     doc_id: str,
     body: ContentSave,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DocumentDetail:
     version = await document_service.save_content(
-        db, doc_id, body.content, source=body.source
+        db, doc_id, user_id=current_user.id, content=body.content, source=body.source
     )
     if version is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    doc = await document_service.get_document(db, doc_id)
+    doc = await document_service.get_document(db, doc_id, user_id=current_user.id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
     await _attach_version_stats(db, doc)
@@ -134,9 +140,10 @@ async def move_document(
     doc_id: str,
     body: DocumentMove,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DocumentDetail:
     try:
-        doc = await document_service.move_document(db, doc_id, body.folder_id)
+        doc = await document_service.move_document(db, doc_id, body.folder_id, user_id=current_user.id)
     except IntegrityError:
         raise HTTPException(status_code=422, detail="Invalid folder_id: folder not found")
     if doc is None:
@@ -150,10 +157,10 @@ async def move_document(
 
 @router.patch("/{doc_id}/position", response_model=DocumentResponse)
 async def set_document_position(
-    doc_id: str, body: DocumentPosition, db: AsyncSession = Depends(get_db)
+    doc_id: str, body: DocumentPosition, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ) -> DocumentResponse:
     doc = await document_service.set_document_position(
-        db, doc_id, body.folder_id, body.sort_order
+        db, doc_id, body.folder_id, body.sort_order, user_id=current_user.id
     )
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -166,6 +173,7 @@ async def upload_content(
     doc_id: str,
     file: UploadFile,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> DocumentDetail:
     if file.content_type and not file.content_type.startswith(("text/", "application/xhtml")):
         raise HTTPException(status_code=400, detail="Only HTML files are accepted")
@@ -180,11 +188,11 @@ async def upload_content(
     except UnicodeDecodeError:
         raise HTTPException(status_code=422, detail="File is not valid UTF-8")
 
-    version = await document_service.upload_content(db, doc_id, content)
+    version = await document_service.upload_content(db, doc_id, user_id=current_user.id, content=content)
     if version is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    doc = await document_service.get_document(db, doc_id)
+    doc = await document_service.get_document(db, doc_id, user_id=current_user.id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
     await _attach_version_stats(db, doc)

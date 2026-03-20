@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Admin — DocsWebServer{% endblock %}
+
+{% block body %}
+<div style="max-width:800px;margin:2rem auto;padding:0 1rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+    <h1 style="margin:0;">User Management</h1>
+    <a href="/" class="btn">← Back</a>
+  </div>
+
+  <div id="error-banner" style="display:none;padding:.75rem 1rem;background:#fed7d7;color:#c53030;border-radius:4px;margin-bottom:1rem;"></div>
+
+  <!-- User table -->
+  <table style="width:100%;border-collapse:collapse;margin-bottom:2rem;">
+    <thead>
+      <tr style="border-bottom:2px solid var(--border);">
+        <th style="text-align:left;padding:.5rem;">Username</th>
+        <th style="text-align:left;padding:.5rem;">Admin</th>
+        <th style="text-align:left;padding:.5rem;">Created</th>
+        <th style="padding:.5rem;"></th>
+      </tr>
+    </thead>
+    <tbody id="user-table-body"></tbody>
+  </table>
+
+  <!-- Add User form -->
+  <h2 style="margin-bottom:1rem;">Add User</h2>
+  <form id="add-user-form" style="display:grid;gap:.75rem;max-width:400px;">
+    <input type="text" id="new-username" placeholder="Username" required
+      style="padding:.5rem .75rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);">
+    <input type="password" id="new-password" placeholder="Password" required
+      style="padding:.5rem .75rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);">
+    <label style="display:flex;align-items:center;gap:.5rem;">
+      <input type="checkbox" id="new-is-admin"> Admin
+    </label>
+    <button type="submit" class="btn primary">Add User</button>
+  </form>
+</div>
+
+<script>
+const token = localStorage.getItem('authToken');
+if (!token) { window.location.href = '/login'; }
+try {
+  const payload = JSON.parse(atob(token.split('.')[1]));
+  if (!payload.is_admin) { window.location.href = '/login'; }
+} catch { window.location.href = '/login'; }
+
+function authHeaders() {
+  return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-banner');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function loadUsers() {
+  const res = await fetch('/api/admin/users', { headers: authHeaders() });
+  if (!res.ok) { showError('Failed to load users'); return; }
+  const users = await res.json();
+  const tbody = document.getElementById('user-table-body');
+  tbody.innerHTML = '';
+  users.forEach(u => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border)';
+    tr.innerHTML = `
+      <td style="padding:.5rem;">${escHtml(u.username)}</td>
+      <td style="padding:.5rem;">${u.is_admin ? '✓' : ''}</td>
+      <td style="padding:.5rem;">${new Date(u.created_at).toLocaleDateString()}</td>
+      <td style="padding:.5rem;display:flex;gap:.5rem;">
+        <button class="btn danger" onclick="deleteUser('${u.id}','${escHtml(u.username)}')">Delete</button>
+        <button class="btn" onclick="resetPassword('${u.id}','${escHtml(u.username)}')">Reset PW</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`Delete user "${username}" and all their documents?`)) return;
+  const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE', headers: authHeaders() });
+  if (!res.ok) { const d = await res.json(); showError(d.detail || 'Delete failed'); return; }
+  loadUsers();
+}
+
+async function resetPassword(id, username) {
+  const pw = prompt(`New password for "${username}":`);
+  if (!pw) return;
+  const res = await fetch(`/api/admin/users/${id}/reset-password`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ password: pw }),
+  });
+  if (!res.ok) { const d = await res.json(); showError(d.detail || 'Reset failed'); return; }
+  alert('Password reset successfully.');
+}
+
+document.getElementById('add-user-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const username = document.getElementById('new-username').value;
+  const password = document.getElementById('new-password').value;
+  const is_admin = document.getElementById('new-is-admin').checked;
+  const res = await fetch('/api/admin/users', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ username, password, is_admin }),
+  });
+  if (!res.ok) { const d = await res.json(); showError(d.detail || 'Create failed'); return; }
+  document.getElementById('new-username').value = '';
+  document.getElementById('new-password').value = '';
+  document.getElementById('new-is-admin').checked = false;
+  loadUsers();
+});
+
+loadUsers();
+</script>
+{% endblock %}
